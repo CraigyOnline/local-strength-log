@@ -1,18 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo } from "react";
-import { getDb } from "@/lib/db";
+import { getDb, type Workout } from "@/lib/db";
 import { getExercise, MUSCLE_GROUPS, type MuscleGroup } from "@/lib/exercises";
-import { Flame, Dumbbell, Calendar, Trophy } from "lucide-react";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Cell,
-} from "recharts";
+import { Flame, Dumbbell, Calendar, Trophy, ChevronRight } from "lucide-react";
+import { MuscleMap } from "@/components/MuscleMap";
 
 export const Route = createFileRoute("/_app/profile")({
   head: () => ({
@@ -32,20 +24,21 @@ function ProfilePage() {
   );
 
   const stats = useMemo(() => computeStats(workouts ?? []), [workouts]);
-  const muscleData = useMemo(() => computeMuscleVolume(workouts ?? []), [workouts]);
+  const intensity = useMemo(() => computeMuscleIntensity(workouts ?? []), [workouts]);
+  const hasData = Object.values(intensity).some((v) => v > 0);
 
   return (
     <div className="flex flex-col gap-6 px-4 pt-6">
-      <header className="flex items-center gap-4">
+      <header className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
         <div
-          className="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold"
+          className="grid h-16 w-16 shrink-0 place-items-center rounded-full text-2xl font-bold"
           style={{ background: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
         >
           🏋️
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">Athlete</h1>
-          <p className="text-sm text-muted-foreground">Keep pushing your limits</p>
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold">Athlete</h1>
+          <p className="truncate text-sm text-muted-foreground">Keep pushing your limits</p>
         </div>
       </header>
 
@@ -57,44 +50,36 @@ function ProfilePage() {
       </section>
 
       <section className="rounded-2xl bg-card p-4">
-        <h2 className="mb-3 text-base font-semibold">Volume by muscle group</h2>
-        {muscleData.every((d) => d.volume === 0) ? (
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <h2 className="text-base font-semibold">Muscles worked</h2>
+          <p className="text-xs text-muted-foreground">Last 30 days</p>
+        </div>
+        {!hasData ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Complete a workout to see your distribution.
+            Complete a workout to light up your muscles.
           </p>
         ) : (
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={muscleData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-                <XAxis
-                  dataKey="muscle"
-                  stroke="var(--color-muted-foreground)"
-                  fontSize={10}
-                  tickLine={false}
-                  axisLine={false}
-                  interval={0}
-                  angle={-35}
-                  textAnchor="end"
-                  height={50}
-                />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip
-                  cursor={{ fill: "var(--color-muted)" }}
-                  contentStyle={{
-                    background: "var(--color-popover)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                />
-                <Bar dataKey="volume" radius={[6, 6, 0, 0]}>
-                  {muscleData.map((_, i) => (
-                    <Cell key={i} fill={`var(--color-chart-${(i % 5) + 1})`} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <>
+            <MuscleMap intensity={intensity} className="w-full max-h-72" />
+            <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>Less</span>
+              <div className="mx-2 h-2 flex-1 rounded-full"
+                style={{ background: "linear-gradient(to right, var(--color-muted), var(--color-primary))" }}
+              />
+              <span>More</span>
+            </div>
+            <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+              {MUSCLE_GROUPS.filter((m) => m !== "Cardio" && (intensity[m] ?? 0) > 0)
+                .sort((a, b) => (intensity[b] ?? 0) - (intensity[a] ?? 0))
+                .slice(0, 6)
+                .map((m) => (
+                  <li key={m} className="flex items-center justify-between">
+                    <span className="text-muted-foreground">{m}</span>
+                    <span className="font-semibold tabular-nums">{Math.round((intensity[m] ?? 0) * 100)}%</span>
+                  </li>
+                ))}
+            </ul>
+          </>
         )}
       </section>
 
@@ -107,32 +92,41 @@ function ProfilePage() {
         ) : (
           <ul className="flex flex-col gap-2">
             {(workouts ?? []).map((w) => (
-              <li key={w.id} className="rounded-2xl bg-card p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold">{w.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(w.startedAt).toLocaleDateString(undefined, {
-                        weekday: "short", month: "short", day: "numeric",
-                      })}
-                      {" · "}
-                      {formatDuration(w.durationSec)}
-                    </p>
+              <li key={w.id}>
+                <Link
+                  to="/history/$id"
+                  params={{ id: String(w.id) }}
+                  className="block rounded-2xl bg-card p-4 transition-colors hover:bg-secondary/40"
+                >
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{w.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {new Date(w.startedAt).toLocaleDateString(undefined, {
+                          weekday: "short", month: "short", day: "numeric",
+                        })}
+                        {" · "}
+                        {formatDuration(w.durationSec)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="rounded-full bg-secondary px-2 py-1 text-xs font-medium">
+                        {w.exercises.reduce((acc, e) => acc + e.sets.filter((s) => s.completed).length, 0)} sets
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   </div>
-                  <span className="rounded-full bg-secondary px-2 py-1 text-xs font-medium">
-                    {w.exercises.reduce((acc, e) => acc + e.sets.filter((s) => s.completed).length, 0)} sets
-                  </span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {w.exercises.slice(0, 4).map((e, i) => (
-                    <span key={i} className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                      {getExercise(e.exerciseId)?.name ?? e.exerciseId}
-                    </span>
-                  ))}
-                  {w.exercises.length > 4 && (
-                    <span className="text-xs text-muted-foreground">+{w.exercises.length - 4} more</span>
-                  )}
-                </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {w.exercises.slice(0, 4).map((e, i) => (
+                      <span key={i} className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                        {getExercise(e.exerciseId)?.name ?? e.exerciseId}
+                      </span>
+                    ))}
+                    {w.exercises.length > 4 && (
+                      <span className="text-xs text-muted-foreground">+{w.exercises.length - 4} more</span>
+                    )}
+                  </div>
+                </Link>
               </li>
             ))}
           </ul>
@@ -144,12 +138,12 @@ function ProfilePage() {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-card p-4">
+    <div className="min-w-0 rounded-2xl bg-card p-4">
       <div className="flex items-center gap-2 text-muted-foreground">
         {icon}
-        <span className="text-xs">{label}</span>
+        <span className="truncate text-xs">{label}</span>
       </div>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
+      <p className="mt-1 truncate text-2xl font-bold">{value}</p>
     </div>
   );
 }
@@ -160,8 +154,6 @@ function formatDuration(sec: number) {
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
-
-import type { Workout } from "@/lib/db";
 
 function computeStats(workouts: Workout[]) {
   const total = workouts.length;
@@ -176,8 +168,6 @@ function computeStats(workouts: Workout[]) {
   );
   const weekAgo = Date.now() - 7 * 86400_000;
   const thisWeek = workouts.filter((w) => w.startedAt >= weekAgo).length;
-
-  // Streak (consecutive days with at least one workout, ending today or yesterday)
   const days = new Set(
     workouts.map((w) => {
       const d = new Date(w.startedAt);
@@ -196,16 +186,30 @@ function computeStats(workouts: Workout[]) {
   return { total, totalVolume, thisWeek, streak };
 }
 
-function computeMuscleVolume(workouts: Workout[]) {
-  const map = new Map<MuscleGroup, number>();
-  MUSCLE_GROUPS.forEach((m) => map.set(m, 0));
+/**
+ * Intensity per muscle group from the past 30 days. Counts each completed set
+ * once for the primary muscle (1.0) and 0.5 for secondary muscles, normalized
+ * by the most-used muscle.
+ */
+function computeMuscleIntensity(workouts: Workout[]): Partial<Record<MuscleGroup, number>> {
+  const cutoff = Date.now() - 30 * 86400_000;
+  const raw: Partial<Record<MuscleGroup, number>> = {};
   for (const w of workouts) {
-    for (const e of w.exercises) {
-      const def = getExercise(e.exerciseId);
+    if (w.startedAt < cutoff) continue;
+    for (const ex of w.exercises) {
+      const def = getExercise(ex.exerciseId);
       if (!def) continue;
-      const vol = e.sets.filter((s) => s.completed).reduce((a, s) => a + s.weight * s.reps, 0);
-      map.set(def.muscle, (map.get(def.muscle) ?? 0) + vol);
+      const completed = ex.sets.filter((s) => s.completed).length;
+      if (completed === 0) continue;
+      raw[def.muscle] = (raw[def.muscle] ?? 0) + completed;
+      for (const sec of def.secondary ?? []) {
+        raw[sec] = (raw[sec] ?? 0) + completed * 0.5;
+      }
     }
   }
-  return Array.from(map.entries()).map(([muscle, volume]) => ({ muscle, volume: Math.round(volume) }));
+  const max = Math.max(0, ...Object.values(raw));
+  if (max === 0) return {};
+  const out: Partial<Record<MuscleGroup, number>> = {};
+  for (const [k, v] of Object.entries(raw)) out[k as MuscleGroup] = (v ?? 0) / max;
+  return out;
 }
