@@ -1,0 +1,224 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useState } from "react";
+import { getDb, type Routine } from "@/lib/db";
+import { EXERCISES, getExercise } from "@/lib/exercises";
+import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+export const Route = createFileRoute("/_app/routines")({
+  head: () => ({
+    meta: [
+      { title: "Routines · Hevy Clone" },
+      { name: "description", content: "Build and manage your workout routines." },
+    ],
+  }),
+  component: RoutinesPage,
+});
+
+function RoutinesPage() {
+  const routines = useLiveQuery(
+    () => (typeof window === "undefined" ? [] : getDb().routines.orderBy("createdAt").reverse().toArray()),
+    [],
+    [],
+  );
+  const [editing, setEditing] = useState<Routine | "new" | null>(null);
+
+  return (
+    <div className="flex flex-col gap-4 px-4 pt-6">
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Routines</h1>
+          <p className="text-sm text-muted-foreground">Plan your training</p>
+        </div>
+        <button
+          onClick={() => setEditing("new")}
+          className="flex h-10 w-10 items-center justify-center rounded-full"
+          style={{ background: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
+          aria-label="New routine"
+        >
+          <Plus className="h-5 w-5" strokeWidth={3} />
+        </button>
+      </header>
+
+      {(routines ?? []).length === 0 ? (
+        <div className="rounded-2xl bg-card p-6 text-center text-sm text-muted-foreground">
+          No routines yet. Tap + to create one.
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {(routines ?? []).map((r) => (
+            <li key={r.id} className="rounded-2xl bg-card p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{r.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.exercises.length} exercise{r.exercises.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setEditing(r)}
+                    className="rounded-md p-2 text-muted-foreground hover:bg-secondary"
+                    aria-label="Edit"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => r.id && getDb().routines.delete(r.id)}
+                    className="rounded-md p-2 text-destructive hover:bg-secondary"
+                    aria-label="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {r.exercises.map((e, i) => (
+                  <span key={i} className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                    {getExercise(e.exerciseId)?.name ?? e.exerciseId}
+                  </span>
+                ))}
+              </div>
+              <Link
+                to="/workout"
+                search={{ routineId: r.id }}
+                className="mt-3 block rounded-lg py-2 text-center text-sm font-semibold"
+                style={{ background: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
+              >
+                Start routine
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {editing && (
+        <RoutineEditor
+          initial={editing === "new" ? null : editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function RoutineEditor({ initial, onClose }: { initial: Routine | null; onClose: () => void }) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [exercises, setExercises] = useState(initial?.exercises ?? []);
+  const [picking, setPicking] = useState(false);
+
+  async function save() {
+    const trimmed = name.trim();
+    if (!trimmed || exercises.length === 0) return;
+    const db = getDb();
+    if (initial?.id) {
+      await db.routines.update(initial.id, { name: trimmed, exercises });
+    } else {
+      await db.routines.add({ name: trimmed, exercises, createdAt: Date.now() });
+    }
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3">
+        <button onClick={onClose} aria-label="Close" className="p-2">
+          <X className="h-5 w-5" />
+        </button>
+        <h2 className="text-base font-semibold">{initial ? "Edit routine" : "New routine"}</h2>
+        <button
+          onClick={save}
+          disabled={!name.trim() || exercises.length === 0}
+          className="rounded-full px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
+          style={{ background: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
+        >
+          Save
+        </button>
+      </header>
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Routine title"
+          className="w-full rounded-xl bg-card px-4 py-3 text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
+        />
+        <ul className="mt-4 flex flex-col gap-2">
+          {exercises.map((e, i) => {
+            const def = getExercise(e.exerciseId);
+            return (
+              <li key={i} className="flex items-center justify-between rounded-xl bg-card px-4 py-3">
+                <div>
+                  <p className="font-medium">{def?.name ?? e.exerciseId}</p>
+                  <p className="text-xs text-muted-foreground">{def?.muscle}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-sm">
+                    <button onClick={() => setExercises((xs) => xs.map((x, j) => j === i ? { ...x, sets: Math.max(1, x.sets - 1) } : x))}>−</button>
+                    <span className="w-6 text-center font-semibold">{e.sets}</span>
+                    <button onClick={() => setExercises((xs) => xs.map((x, j) => j === i ? { ...x, sets: x.sets + 1 } : x))}>+</button>
+                  </div>
+                  <button onClick={() => setExercises((xs) => xs.filter((_, j) => j !== i))} className="text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <Button
+          variant="outline"
+          className="mt-4 w-full"
+          onClick={() => setPicking(true)}
+        >
+          <Plus className="mr-2 h-4 w-4" /> Add exercise
+        </Button>
+      </div>
+      {picking && (
+        <ExercisePicker
+          onClose={() => setPicking(false)}
+          onPick={(id) => {
+            setExercises((xs) => [...xs, { exerciseId: id, sets: 3 }]);
+            setPicking(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+export function ExercisePicker({ onClose, onPick }: { onClose: () => void; onPick: (id: string) => void }) {
+  const [q, setQ] = useState("");
+  const filtered = EXERCISES.filter((e) => e.name.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-background">
+      <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <button onClick={onClose} className="p-2"><X className="h-5 w-5" /></button>
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search exercises..."
+          className="flex-1 rounded-lg bg-card px-3 py-2 outline-none"
+        />
+      </header>
+      <ul className="flex-1 overflow-y-auto">
+        {filtered.map((e) => (
+          <li key={e.id}>
+            <button
+              onClick={() => onPick(e.id)}
+              className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left hover:bg-card"
+            >
+              <div>
+                <p className="font-medium">{e.name}</p>
+                <p className="text-xs text-muted-foreground">{e.muscle}</p>
+              </div>
+              <Check className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
