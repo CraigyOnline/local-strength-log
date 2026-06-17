@@ -77,7 +77,7 @@ export const EXERCISES: ExerciseDef[] = [
   E("pullover-db", "Dumbbell Pullover", "Lats", "Dumbbell", ["Chest"]),
   E("good-morning", "Good Morning", "LowerBack", "Barbell", ["Hamstrings", "Glutes"]),
   E("back-extension", "Back Extension", "LowerBack", "Bodyweight", ["Glutes", "Hamstrings"]),
-  E("shrug-bb", "Shrug (Barbell)", "Traps" as MuscleGroup, "Barbell"),
+  E("shrug-bb", "Shrug (Barbell)", "UpperBack", "Barbell"),
   E("shrug-db", "Shrug (Dumbbell)", "UpperBack", "Dumbbell"),
 
   // ---------- Shoulders ----------
@@ -166,7 +166,7 @@ export const EXERCISES: ExerciseDef[] = [
 
   // ---------- Cardio ----------
   E("treadmill", "Treadmill Run", "Cardio", "Cardio", [], true),
-  E("rowing-machine", "Rowing Machine", "Cardio", "Cardio", ["UpperBack", "Lats", "Legs" as MuscleGroup], true),
+  E("rowing-machine", "Rowing Machine", "Cardio", "Cardio", ["UpperBack", "Lats", "Quads"], true),
   E("assault-bike", "Assault Bike", "Cardio", "Cardio", [], true),
   E("stationary-bike", "Stationary Bike", "Cardio", "Cardio", ["Quads"], true),
   E("elliptical", "Elliptical", "Cardio", "Cardio", [], true),
