@@ -212,13 +212,13 @@ function LiveSession({
   }
 
   return (
-    <div className="flex flex-col gap-4 px-4 pt-4">
-      <header className="sticky top-0 -mx-4 z-10 flex items-center justify-between border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-4 overflow-x-hidden px-4 pt-4">
+      <header className="sticky top-0 -mx-4 z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <Timer className="h-4 w-4 text-primary" />
-          <span className="font-mono text-lg font-bold tabular-nums">{fmt(elapsed)}</span>
+          <span className="font-mono text-base font-bold tabular-nums">{fmt(elapsed)}</span>
         </div>
-        <div className="text-xs text-muted-foreground">{completedCount} sets done</div>
+        <div className="truncate text-center text-xs text-muted-foreground">{completedCount} sets done</div>
         <button
           onClick={() => onFinish(true)}
           className="rounded-full px-4 py-1.5 text-sm font-bold"
@@ -231,8 +231,9 @@ function LiveSession({
       <input
         value={session.name}
         onChange={(e) => setSession((s) => (s ? { ...s, name: e.target.value } : s))}
-        className="bg-transparent text-2xl font-bold outline-none"
+        className="w-full min-w-0 bg-transparent text-2xl font-bold outline-none"
       />
+
 
       {session.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);
