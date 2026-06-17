@@ -237,17 +237,17 @@ function LiveSession({
       {session.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);
         return (
-          <div key={ei} className="rounded-2xl bg-card p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-primary">{def?.name ?? ex.exerciseId}</p>
-                <p className="text-xs text-muted-foreground">{def?.muscle}</p>
+          <div key={ei} className="w-full min-w-0 overflow-hidden rounded-2xl bg-card p-3 sm:p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-primary">{def?.name ?? ex.exerciseId}</p>
+                <p className="truncate text-xs text-muted-foreground">{def?.muscle}</p>
               </div>
-              <button onClick={() => removeExercise(ei)} className="text-muted-foreground">
+              <button onClick={() => removeExercise(ei)} className="shrink-0 text-muted-foreground" aria-label="Remove exercise">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="grid grid-cols-[2rem_1fr_1fr_2rem] gap-2 text-xs text-muted-foreground uppercase tracking-wide">
+            <div className="grid grid-cols-[1.75rem_minmax(0,1fr)_minmax(0,1fr)_1.75rem] gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
               <span className="text-center">Set</span>
               <span className="text-center">Kg</span>
               <span className="text-center">Reps</span>
@@ -257,7 +257,7 @@ function LiveSession({
               {ex.sets.map((s, si) => (
                 <li
                   key={si}
-                  className="grid grid-cols-[2rem_1fr_1fr_2rem] items-center gap-2 rounded-lg px-1 py-1.5"
+                  className="grid grid-cols-[1.75rem_minmax(0,1fr)_minmax(0,1fr)_1.75rem] items-center gap-2 rounded-lg px-1 py-1.5"
                   style={{ background: s.completed ? "color-mix(in oklab, var(--color-primary) 18%, transparent)" : undefined }}
                 >
                   <span className="text-center text-sm font-semibold">{si + 1}</span>
@@ -267,7 +267,7 @@ function LiveSession({
                     value={s.weight || ""}
                     onChange={(e) => updateSet(ei, si, { weight: parseFloat(e.target.value) || 0 })}
                     placeholder="0"
-                    className="rounded-md bg-secondary px-2 py-1.5 text-center font-medium tabular-nums outline-none focus:ring-1 focus:ring-ring"
+                    className="w-full min-w-0 rounded-md bg-secondary px-1 py-1.5 text-center font-medium tabular-nums outline-none focus:ring-1 focus:ring-ring"
                   />
                   <input
                     type="number"
@@ -275,7 +275,7 @@ function LiveSession({
                     value={s.reps || ""}
                     onChange={(e) => updateSet(ei, si, { reps: parseInt(e.target.value) || 0 })}
                     placeholder="0"
-                    className="rounded-md bg-secondary px-2 py-1.5 text-center font-medium tabular-nums outline-none focus:ring-1 focus:ring-ring"
+                    className="w-full min-w-0 rounded-md bg-secondary px-1 py-1.5 text-center font-medium tabular-nums outline-none focus:ring-1 focus:ring-ring"
                   />
                   <button
                     onClick={() => updateSet(ei, si, { completed: !s.completed })}
