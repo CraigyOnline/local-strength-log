@@ -275,7 +275,7 @@ function LiveSession({
             <div className="grid grid-cols-[1.75rem_minmax(0,1fr)_minmax(0,1fr)_1.75rem_1.5rem] gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
               <span className="text-center">Set</span>
               <span className="text-center">Kg</span>
-              <span className="text-center">Reps</span>
+              <span className="text-center">{def?.cardio ? "Sec" : "Reps"}</span>
               <span></span>
               <span></span>
             </div>
@@ -287,22 +287,17 @@ function LiveSession({
                   style={{ background: s.completed ? "color-mix(in oklab, var(--color-primary) 18%, transparent)" : undefined }}
                 >
                   <span className="text-center text-sm font-semibold">{si + 1}</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={s.weight || ""}
-                    onChange={(e) => updateSet(ei, si, { weight: parseFloat(e.target.value) || 0 })}
-                    placeholder="0"
-                    className="w-full min-w-0 rounded-md bg-secondary px-1 py-1.5 text-center font-medium tabular-nums outline-none focus:ring-1 focus:ring-ring"
+                  <NumField
+                    value={s.weight}
+                    decimal
+                    onCommit={(n) => updateSet(ei, si, { weight: n })}
                   />
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={s.reps || ""}
-                    onChange={(e) => updateSet(ei, si, { reps: parseInt(e.target.value) || 0 })}
-                    placeholder="0"
-                    className="w-full min-w-0 rounded-md bg-secondary px-1 py-1.5 text-center font-medium tabular-nums outline-none focus:ring-1 focus:ring-ring"
+                  <NumField
+                    value={s.reps}
+                    onCommit={(n) => updateSet(ei, si, { reps: n })}
+                    placeholder={def?.cardio ? "sec" : "0"}
                   />
+
                   <button
                     onClick={() => updateSet(ei, si, { completed: !s.completed })}
                     aria-label="Mark complete"
@@ -360,4 +355,50 @@ function fmt(sec: number) {
   const ss = String(s).padStart(2, "0");
   if (h > 0) return `${h}:${mm}:${ss}`;
   return `${mm}:${ss}`;
+}
+
+function NumField({
+  value,
+  onCommit,
+  decimal = false,
+  placeholder = "0",
+}: {
+  value: number;
+  onCommit: (n: number) => void;
+  decimal?: boolean;
+  placeholder?: string;
+}) {
+  const [text, setText] = useState<string>(value ? String(value) : "");
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setText(value ? String(value) : "");
+  }, [value, focused]);
+  const pattern = decimal ? /^\d*\.?\d*$/ : /^\d*$/;
+  return (
+    <input
+      type="text"
+      inputMode={decimal ? "decimal" : "numeric"}
+      value={text}
+      placeholder={placeholder}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        const n = decimal ? parseFloat(text) : parseInt(text, 10);
+        onCommit(Number.isFinite(n) ? n : 0);
+        if (!Number.isFinite(n)) setText("");
+      }}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (!pattern.test(v)) return;
+        setText(v);
+        if (v === "" || v === "." ) {
+          onCommit(0);
+          return;
+        }
+        const n = decimal ? parseFloat(v) : parseInt(v, 10);
+        if (Number.isFinite(n)) onCommit(n);
+      }}
+      className="w-full min-w-0 rounded-md bg-secondary px-1 py-1.5 text-center font-medium tabular-nums outline-none focus:ring-1 focus:ring-ring"
+    />
+  );
 }
