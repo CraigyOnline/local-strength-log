@@ -198,7 +198,20 @@ function LiveSession({
                     ],
                   },
             ),
+  }
+
+  function removeSet(ei: number, si: number) {
+    setSession((s) =>
+      s
+        ? {
+            ...s,
+            exercises: s.exercises.map((e, i) =>
+              i !== ei ? e : { ...e, sets: e.sets.filter((_, j) => j !== si) },
+            ),
           }
+        : s,
+    );
+  }
         : s,
     );
   }
@@ -259,17 +272,18 @@ function LiveSession({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="grid grid-cols-[1.75rem_minmax(0,1fr)_minmax(0,1fr)_1.75rem] gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <div className="grid grid-cols-[1.75rem_minmax(0,1fr)_minmax(0,1fr)_1.75rem_1.5rem] gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
               <span className="text-center">Set</span>
               <span className="text-center">Kg</span>
               <span className="text-center">Reps</span>
+              <span></span>
               <span></span>
             </div>
             <ul className="mt-2 flex flex-col gap-2">
               {ex.sets.map((s, si) => (
                 <li
                   key={si}
-                  className="grid grid-cols-[1.75rem_minmax(0,1fr)_minmax(0,1fr)_1.75rem] items-center gap-2 rounded-lg px-1 py-1.5"
+                  className="grid grid-cols-[1.75rem_minmax(0,1fr)_minmax(0,1fr)_1.75rem_1.5rem] items-center gap-2 rounded-lg px-1 py-1.5"
                   style={{ background: s.completed ? "color-mix(in oklab, var(--color-primary) 18%, transparent)" : undefined }}
                 >
                   <span className="text-center text-sm font-semibold">{si + 1}</span>
@@ -299,6 +313,13 @@ function LiveSession({
                     }}
                   >
                     <Check className="h-4 w-4" strokeWidth={3} />
+                  </button>
+                  <button
+                    onClick={() => removeSet(ei, si)}
+                    aria-label="Remove set"
+                    className="flex h-7 w-6 items-center justify-center justify-self-end text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </li>
               ))}
