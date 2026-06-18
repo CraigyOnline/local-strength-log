@@ -1,4 +1,64 @@
 export type MuscleGroup =
+  | "Chest" | "Shoulders" | "Biceps" | "Triceps" | "Forearms"
+  | "Abs" | "Obliques" | "Lats" | "UpperBack" | "LowerBack"
+  | "Glutes" | "Quads" | "Hamstrings" | "Calves" | "Cardio";
+
+export type Equipment =
+  | "Barbell" | "Dumbbell" | "Machine" | "Cable"
+  | "Bodyweight" | "Kettlebell" | "Band" | "Cardio" | "Other";
+
+export type MeasurementType = "reps" | "time" | "distance";
+
+export interface ExerciseDef {
+  id: string;
+  name: string;
+  muscle: MuscleGroup;
+  secondary?: MuscleGroup[];
+  equipment: Equipment;
+  measurement?: MeasurementType;
+}
+
+const E = (
+  id: string,
+  name: string,
+  muscle: MuscleGroup,
+  equipment: Equipment,
+  secondary: MuscleGroup[] = [],
+  measurement: MeasurementType = "reps",
+): ExerciseDef => ({
+  id,
+  name,
+  muscle,
+  equipment,
+  secondary,
+  measurement,
+});
+
+export const EXERCISES: ExerciseDef[] = [
+  E("bench-press", "Bench Press (Barbell)", "Chest", "Barbell"),
+  E("push-up", "Push Up", "Chest", "Bodyweight"),
+
+  E("pull-up", "Pull Up", "Lats", "Bodyweight"),
+  E("lat-pulldown", "Lat Pulldown", "Lats", "Cable"),
+
+  E("plank", "Plank", "Abs", "Bodyweight", [], "time"),
+  E("side-plank", "Side Plank", "Obliques", "Bodyweight", [], "time"),
+  E("hollow-hold", "Hollow Hold", "Abs", "Bodyweight", [], "time"),
+
+  E("treadmill", "Treadmill Run", "Cardio", "Cardio", [], "distance"),
+  E("jump-rope", "Jump Rope", "Cardio", "Cardio", [], "time"),
+];
+
+export const MUSCLE_GROUPS: MuscleGroup[] = [
+  "Chest","Lats","UpperBack","LowerBack",
+  "Shoulders","Biceps","Triceps","Forearms",
+  "Abs","Obliques","Quads","Hamstrings",
+  "Glutes","Calves","Cardio",
+];
+
+export function getExercise(id: string): ExerciseDef | undefined {
+  return EXERCISES.find((e) => e.id === id);
+}export type MuscleGroup =
   | "Chest"
   | "Shoulders"
   | "Biceps"
