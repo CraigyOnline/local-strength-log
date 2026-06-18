@@ -37,10 +37,13 @@ function ProfilePage() {
     [],
   );
 
-  const [activeMuscle, setActiveMuscle] = useState<MuscleGroup | null>(null);
+  // 📱 MOBILE INTERACTION STATE
+  const [selectedMuscle, setSelectedMuscle] = useState<MuscleGroup | null>(null);
+  const [drilldownMuscle, setDrilldownMuscle] = useState<MuscleGroup | null>(null);
 
   const stats = useMemo(() => computeStats(workouts ?? []), [workouts]);
   const intensity = useMemo(() => computeMuscleIntensity(workouts ?? []), [workouts]);
+
   const hasData = Object.values(intensity).some((v) => v > 0);
 
   const todayKey = Math.floor(Date.now() / 86_400_000);
@@ -64,14 +67,15 @@ function ProfilePage() {
     if (!entries.length) return null;
 
     return (
-      activeMuscle ||
+      selectedMuscle ||
       entries.sort((a, b) => b[1] - a[1])[0]?.[0] ||
       null
     );
-  }, [intensity, activeMuscle]);
+  }, [intensity, selectedMuscle]);
 
   return (
     <div className="flex flex-col gap-6 px-4 pt-6">
+
       {/* HEADER */}
       <header className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
         <div className="grid h-16 w-16 place-items-center rounded-full text-2xl font-bold bg-primary text-primary-foreground">
@@ -96,30 +100,39 @@ function ProfilePage() {
         <StatCard icon={<Calendar className="h-4 w-4" />} label="This week" value={stats.thisWeek.toString()} />
       </section>
 
-      {/* MUSCLE DISTRIBUTION */}
+      {/* MUSCLE DISTRIBUTION (MOBILE DRILLDOWN SYSTEM) */}
       <section className="rounded-2xl bg-card p-5 border border-border/50 shadow-sm">
+
         {/* HEADER */}
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-base font-semibold">Muscle Distribution</h2>
-            <p className="text-xs text-muted-foreground">Last 30 days</p>
+            <p className="text-xs text-muted-foreground">
+              Tap to select • Long press for details
+            </p>
           </div>
 
-          {topMuscle && (
-            <div className="text-right">
-              <p className="text-[10px] text-muted-foreground">Focused</p>
-              <p className="text-xs font-semibold">{topMuscle}</p>
-            </div>
+          {selectedMuscle && (
+            <button
+              onClick={() => setSelectedMuscle(null)}
+              className="text-xs text-primary font-medium"
+            >
+              Clear
+            </button>
           )}
         </div>
 
         {/* MAP */}
         <div
           className={`rounded-xl p-3 mb-5 transition-all duration-300 ${
-            activeMuscle ? "bg-primary/10" : "bg-secondary/20"
+            selectedMuscle ? "bg-primary/10" : "bg-secondary/20"
           }`}
         >
-          <MuscleMap intensity={intensity} className="w-full max-h-72" />
+          <MuscleMap
+            intensity={intensity}
+            activeMuscle={selectedMuscle}
+            className="w-full max-h-72"
+          />
         </div>
 
         {/* BARS */}
@@ -128,20 +141,33 @@ function ProfilePage() {
             (m) => m !== "Cardio" && (intensity[m] ?? 0) > 0,
           )
             .sort((a, b) => (intensity[b] ?? 0) - (intensity[a] ?? 0))
-            .slice(0, 6)
+            .slice(0, 7)
             .map((m) => {
               const value = Math.round((intensity[m] ?? 0) * 100);
-              const isActive = activeMuscle === m;
-              const isDimmed = activeMuscle && !isActive;
+              const isSelected = selectedMuscle === m;
+              const isDimmed = selectedMuscle && !isSelected;
 
               return (
                 <div
                   key={m}
-                  onMouseEnter={() => setActiveMuscle(m)}
-                  onMouseLeave={() => setActiveMuscle(null)}
                   className={`transition-opacity duration-200 ${
-                    isDimmed ? "opacity-40" : "opacity-100"
+                    isDimmed ? "opacity-30" : "opacity-100"
                   }`}
+                  onClick={() =>
+                    setSelectedMuscle((prev) => (prev === m ? null : m))
+                  }
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setDrilldownMuscle(m);
+                  }}
+                  onTouchStart={() => {
+                    const timer = setTimeout(() => {
+                      setDrilldownMuscle(m);
+                    }, 500);
+
+                    const clear = () => clearTimeout(timer);
+                    window.addEventListener("touchend", clear, { once: true });
+                  }}
                 >
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-muted-foreground">{m}</span>
@@ -151,7 +177,7 @@ function ProfilePage() {
                   <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ${
-                        isActive
+                        isSelected
                           ? "bg-primary"
                           : "bg-gradient-to-r from-primary to-primary/60"
                       }`}
@@ -169,13 +195,58 @@ function ProfilePage() {
           <div className="h-1 flex-1 mx-2 rounded-full bg-gradient-to-r from-muted to-primary/60" />
           <span>More</span>
         </div>
+
+        {/* DRILLDOWN BOTTOM SHEET */}
+        {drilldownMuscle && (
+          <div className="fixed inset-0 z-50 flex items-end bg-black/40">
+            <div className="w-full rounded-t-2xl bg-card p-5">
+
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold">{drilldownMuscle}</h3>
+
+                <button
+                  onClick={() => setDrilldownMuscle(null)}
+                  className="text-sm text-muted-foreground"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="rounded-xl bg-secondary/30 p-3">
+                  <p className="text-xs text-muted-foreground">Intensity</p>
+                  <p className="text-lg font-bold">
+                    {Math.round((intensity[drilldownMuscle] ?? 0) * 100)}%
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-secondary/30 p-3">
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <p className="text-lg font-bold">
+                    {selectedMuscle === drilldownMuscle ? "Focused" : "Overview"}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedMuscle(drilldownMuscle);
+                  setDrilldownMuscle(null);
+                }}
+                className="w-full rounded-xl bg-primary text-primary-foreground py-3 text-sm font-medium"
+              >
+                Focus this muscle
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
 }
 
 /* ========================= */
-/* UI COMPONENTS */
+/* COMPONENTS */
 /* ========================= */
 
 function StatCard({
