@@ -356,3 +356,49 @@ function fmt(sec: number) {
   if (h > 0) return `${h}:${mm}:${ss}`;
   return `${mm}:${ss}`;
 }
+
+function NumField({
+  value,
+  onCommit,
+  decimal = false,
+  placeholder = "0",
+}: {
+  value: number;
+  onCommit: (n: number) => void;
+  decimal?: boolean;
+  placeholder?: string;
+}) {
+  const [text, setText] = useState<string>(value ? String(value) : "");
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setText(value ? String(value) : "");
+  }, [value, focused]);
+  const pattern = decimal ? /^\d*\.?\d*$/ : /^\d*$/;
+  return (
+    <input
+      type="text"
+      inputMode={decimal ? "decimal" : "numeric"}
+      value={text}
+      placeholder={placeholder}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        const n = decimal ? parseFloat(text) : parseInt(text, 10);
+        onCommit(Number.isFinite(n) ? n : 0);
+        if (!Number.isFinite(n)) setText("");
+      }}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (!pattern.test(v)) return;
+        setText(v);
+        if (v === "" || v === "." ) {
+          onCommit(0);
+          return;
+        }
+        const n = decimal ? parseFloat(v) : parseInt(v, 10);
+        if (Number.isFinite(n)) onCommit(n);
+      }}
+      className="w-full min-w-0 rounded-md bg-secondary px-1 py-1.5 text-center font-medium tabular-nums outline-none focus:ring-1 focus:ring-ring"
+    />
+  );
+}
