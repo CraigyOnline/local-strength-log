@@ -198,6 +198,9 @@ function LiveSession({
                     ],
                   },
             ),
+          }
+        : s,
+    );
   }
 
   function removeSet(ei: number, si: number) {
@@ -209,9 +212,6 @@ function LiveSession({
               i !== ei ? e : { ...e, sets: e.sets.filter((_, j) => j !== si) },
             ),
           }
-        : s,
-    );
-  }
         : s,
     );
   }
