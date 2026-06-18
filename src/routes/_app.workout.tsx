@@ -105,16 +105,27 @@ function WorkoutPage() {
       setSession={setActive}
       onFinish={async (save) => {
         if (save) {
-          const endedAt = Date.now();
-          const hasCompleted = active.exercises.some((e) => e.sets.some((s) => s.completed));
-          if (hasCompleted) {
+          const exercises = active.exercises.map((e) => ({
+            ...e,
+            sets: e.sets.map((s) =>
+              s.completed || s.weight > 0 || s.reps > 0 ? { ...s, completed: true } : s,
+            ),
+          }));
+          const hasCompleted = exercises.some((e) => e.sets.some((s) => s.completed));
+          if (!hasCompleted) {
+            const discard = confirm(
+              "This workout is empty — no sets have any weight or reps. Discard it? (Cancel to keep editing.)",
+            );
+            if (!discard) return;
+          } else {
+            const endedAt = Date.now();
             await getDb().workouts.add({
               routineId: active.routine?.id,
               name: active.name,
               startedAt: active.startedAt,
               endedAt,
               durationSec: Math.round((endedAt - active.startedAt) / 1000),
-              exercises: active.exercises,
+              exercises,
             });
           }
         }
