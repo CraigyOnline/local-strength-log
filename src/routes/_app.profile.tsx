@@ -27,6 +27,21 @@ function ProfilePage() {
   const intensity = useMemo(() => computeMuscleIntensity(workouts ?? []), [workouts]);
   const hasData = Object.values(intensity).some((v) => v > 0);
 
+  // This selects a single stable random message when the page loads
+  const randomMessage = useMemo(() => {
+    const motivationalMessages = [
+      "Ready to crush today's session?",
+      "Consistency beats talent. Let's work.",
+      "No shortcuts. Just hard work.",
+      "Earn your rest today.",
+      "Make yourself proud.",
+      "Small steps every day add up.",
+      "Sweat now, shine later.",
+      "The only bad workout is the one that didn't happen."
+    ];
+    return motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
+  }, []);
+
   return (
     <div className="flex flex-col gap-6 px-4 pt-6">
       <header className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
@@ -37,8 +52,8 @@ function ProfilePage() {
           🏋️
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold">Athlete</h1>
-          <p className="truncate text-sm text-muted-foreground">Keep pushing your limits</p>
+          <h1 className="truncate text-2xl font-bold tracking-tight">Welcome Back, Champ</h1>
+          <p className="truncate text-sm text-muted-foreground">{randomMessage}</p>
         </div>
       </header>
 
