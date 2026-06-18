@@ -41,6 +41,9 @@ function ProfilePage() {
   const intensity = useMemo(() => computeMuscleIntensity(workouts ?? []), [workouts]);
   const hasData = Object.values(intensity).some((v) => v > 0);
 
+  // ✅ NEW: day-based key for daily message rotation
+  const todayKey = Math.floor(Date.now() / 86_400_000);
+
   const welcomeMessage = useMemo(() => {
     if (!workouts?.length) {
       return "Ready to start your fitness journey?";
@@ -60,12 +63,11 @@ function ProfilePage() {
       return "100 workouts completed. Huge achievement.";
     }
 
-    const dayIndex =
-      Math.floor(Date.now() / 86_400_000) %
-      MOTIVATIONAL_MESSAGES.length;
+    // ✅ UPDATED: uses todayKey instead of Date.now()
+    const dayIndex = todayKey % MOTIVATIONAL_MESSAGES.length;
 
     return MOTIVATIONAL_MESSAGES[dayIndex];
-  }, [workouts]);
+  }, [workouts, todayKey]);
 
   return (
     <div className="flex flex-col gap-6 px-4 pt-6">
@@ -155,10 +157,7 @@ function ProfilePage() {
                 )
                 .slice(0, 6)
                 .map((m) => (
-                  <li
-                    key={m}
-                    className="flex items-center justify-between"
-                  >
+                  <li key={m} className="flex items-center justify-between">
                     <span className="text-muted-foreground">{m}</span>
                     <span className="font-semibold tabular-nums">
                       {Math.round((intensity[m] ?? 0) * 100)}%
@@ -205,8 +204,7 @@ function ProfilePage() {
                       <span className="rounded-full bg-secondary px-2 py-1 text-xs font-medium">
                         {w.exercises.reduce(
                           (acc, e) =>
-                            acc +
-                            e.sets.filter((s) => s.completed).length,
+                            acc + e.sets.filter((s) => s.completed).length,
                           0,
                         )}{" "}
                         sets
@@ -291,9 +289,7 @@ function computeStats(workouts: Workout[]) {
 
   const weekAgo = Date.now() - 7 * 86400_000;
 
-  const thisWeek = workouts.filter(
-    (w) => w.startedAt >= weekAgo,
-  ).length;
+  const thisWeek = workouts.filter((w) => w.startedAt >= weekAgo).length;
 
   const days = new Set(
     workouts.map((w) => {
@@ -320,11 +316,6 @@ function computeStats(workouts: Workout[]) {
   return { total, totalVolume, thisWeek, streak };
 }
 
-/**
- * Intensity per muscle group from the past 30 days. Counts each completed set
- * once for the primary muscle (1.0) and 0.5 for secondary muscles, normalized
- * by the most-used muscle.
- */
 function computeMuscleIntensity(
   workouts: Workout[],
 ): Partial<Record<MuscleGroup, number>> {
