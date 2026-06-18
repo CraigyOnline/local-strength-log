@@ -1,4 +1,3 @@
-```tsx
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo } from "react";
