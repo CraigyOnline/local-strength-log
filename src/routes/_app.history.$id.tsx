@@ -10,7 +10,7 @@ import {
   Save,
 } from "lucide-react";
 import { getDb, type Workout, type WorkoutExerciseLog } from "@/lib/db";
-import { getExercise } from "@/lib/exercises";
+import { getExercise, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
 import { Button } from "@/components/ui/button";
 
@@ -80,7 +80,7 @@ function HistoryDetailPage() {
     return (
       <div className="flex flex-col gap-4 px-4 pt-6">
         <p className="text-sm text-muted-foreground">Workout not found.</p>
-        <Link to="/profile" className="text-sm text-primary underline">
+        <Link to="/history" className="text-sm text-primary underline">
           Back to history
         </Link>
       </div>
@@ -125,26 +125,27 @@ function HistoryDetailPage() {
     if (!confirm("Delete this workout?")) return;
 
     await getDb().workouts.delete(workout.id);
-    navigate({ to: "/profile" });
+    navigate({ to: "/history" });
   }
 
   /**
    * PR CHECK (runs when editing sets)
    */
-  function checkPR(exerciseId: string, set: any) {
+  function checkPR(exerciseId: string, set: { weight?: number; reps?: number; duration?: number }) {
     const def = getExercise(exerciseId);
     if (!def) return;
+    const wid = workout?.id;
 
-    if (def.measurement === "time") {
-      if (set.duration > 0) {
-        savePR(exerciseId, "time", set.duration, workout.id);
+    if (isTimeBased(def)) {
+      if ((set.duration ?? 0) > 0) {
+        savePR(exerciseId, "time", set.duration ?? 0, wid);
       }
     } else {
-      if (set.weight > 0) {
-        savePR(exerciseId, "weight", set.weight, workout.id);
+      if ((set.weight ?? 0) > 0) {
+        savePR(exerciseId, "weight", set.weight ?? 0, wid);
       }
-      if (set.reps > 0) {
-        savePR(exerciseId, "reps", set.reps, workout.id);
+      if ((set.reps ?? 0) > 0) {
+        savePR(exerciseId, "reps", set.reps ?? 0, wid);
       }
     }
   }
@@ -254,7 +255,7 @@ function HistoryDetailPage() {
     <div className="flex flex-col gap-4 px-4 pt-4 pb-8">
       {/* HEADER */}
       <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-        <button onClick={() => navigate({ to: "/profile" })}>
+        <button onClick={() => navigate({ to: "/history" })}>
           <ArrowLeft className="h-5 w-5" />
         </button>
 
