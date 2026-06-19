@@ -35,14 +35,13 @@ function WorkoutPage() {
   const { routineId } = Route.useSearch();
   const navigate = useNavigate();
 
-  const routines = useLiveQuery<Routine[]>(
+  const routines = useLiveQuery(
     () =>
       typeof window === "undefined"
-        ? Promise.resolve([])
+        ? Promise.resolve<Routine[]>([])
         : getDb().routines.orderBy("createdAt").reverse().toArray(),
     [],
-    [],
-  );
+  ) as Routine[] | undefined;
 
   const [active, setActive] = useState<ActiveSession | null>(null);
   const [picking, setPicking] = useState(false);
