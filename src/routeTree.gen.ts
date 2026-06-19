@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWorkoutRouteImport } from './routes/_app.workout'
 import { Route as AppRoutinesRouteImport } from './routes/_app.routines'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppHistoryRouteImport } from './routes/_app.history'
 import { Route as AppHistoryIdRouteImport } from './routes/_app.history.$id'
 
 const AppRoute = AppRouteImport.update({
@@ -40,14 +41,20 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
-const AppHistoryIdRoute = AppHistoryIdRouteImport.update({
-  id: '/history/$id',
-  path: '/history/$id',
+const AppHistoryRoute = AppHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => AppRoute,
+} as any)
+const AppHistoryIdRoute = AppHistoryIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppHistoryRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/history': typeof AppHistoryRouteWithChildren
   '/profile': typeof AppProfileRoute
   '/routines': typeof AppRoutinesRoute
   '/workout': typeof AppWorkoutRoute
@@ -55,6 +62,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/history': typeof AppHistoryRouteWithChildren
   '/profile': typeof AppProfileRoute
   '/routines': typeof AppRoutinesRoute
   '/workout': typeof AppWorkoutRoute
@@ -64,6 +72,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/_app/history': typeof AppHistoryRouteWithChildren
   '/_app/profile': typeof AppProfileRoute
   '/_app/routines': typeof AppRoutinesRoute
   '/_app/workout': typeof AppWorkoutRoute
@@ -71,13 +80,20 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/profile' | '/routines' | '/workout' | '/history/$id'
+  fullPaths:
+    | '/'
+    | '/history'
+    | '/profile'
+    | '/routines'
+    | '/workout'
+    | '/history/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/profile' | '/routines' | '/workout' | '/history/$id'
+  to: '/' | '/history' | '/profile' | '/routines' | '/workout' | '/history/$id'
   id:
     | '__root__'
     | '/'
     | '/_app'
+    | '/_app/history'
     | '/_app/profile'
     | '/_app/routines'
     | '/_app/workout'
@@ -126,28 +142,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/history': {
+      id: '/_app/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof AppHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/history/$id': {
       id: '/_app/history/$id'
-      path: '/history/$id'
+      path: '/$id'
       fullPath: '/history/$id'
       preLoaderRoute: typeof AppHistoryIdRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppHistoryRoute
     }
   }
 }
 
-interface AppRouteChildren {
-  AppProfileRoute: typeof AppProfileRoute
-  AppRoutinesRoute: typeof AppRoutinesRoute
-  AppWorkoutRoute: typeof AppWorkoutRoute
+interface AppHistoryRouteChildren {
   AppHistoryIdRoute: typeof AppHistoryIdRoute
 }
 
+const AppHistoryRouteChildren: AppHistoryRouteChildren = {
+  AppHistoryIdRoute: AppHistoryIdRoute,
+}
+
+const AppHistoryRouteWithChildren = AppHistoryRoute._addFileChildren(
+  AppHistoryRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppHistoryRoute: typeof AppHistoryRouteWithChildren
+  AppProfileRoute: typeof AppProfileRoute
+  AppRoutinesRoute: typeof AppRoutinesRoute
+  AppWorkoutRoute: typeof AppWorkoutRoute
+}
+
 const AppRouteChildren: AppRouteChildren = {
+  AppHistoryRoute: AppHistoryRouteWithChildren,
   AppProfileRoute: AppProfileRoute,
   AppRoutinesRoute: AppRoutinesRoute,
   AppWorkoutRoute: AppWorkoutRoute,
-  AppHistoryIdRoute: AppHistoryIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -159,3 +194,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
