@@ -183,20 +183,101 @@ interface LiveSessionProps {
 function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessionProps) {
   const [, force] = useState(0);
 
+  // 🔁 global rerender loop (drives live timers + undo countdown)
   useEffect(() => {
-    const t = setInterval(() => force((x) => x + 1), 500);
+    const t = setInterval(() => force((x) => x + 1), 250);
     return () => clearInterval(t);
   }, []);
 
-  const elapsed = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
+  const now = Date.now();
 
-  function updateSet(ei: number, si: number, patch: Partial<WorkoutSet & { timerStart: number | null }>) {
+  const elapsed = Math.max(0, Math.round((now - session.startedAt) / 1000));
+
+  // =========================
+  // 🔥 UNDO STATE
+  // =========================
+  const [undo, setUndo] = useState<null | {
+    ei: number;
+    si: number;
+    set: WorkoutSet & { timerStart?: number | null };
+    timeoutId: ReturnType<typeof setTimeout>;
+  }>(null);
+
+  const [undoTick, setUndoTick] = useState(0);
+
+  useEffect(() => {
+    if (!undo) return;
+
+    const t = setInterval(() => {
+      setUndoTick((x) => x + 1);
+    }, 100);
+
+    return () => clearInterval(t);
+  }, [undo]);
+
+  const undoSecondsLeft = undo
+    ? Math.max(0, 3 - Math.floor(undoTick / 10))
+    : 0;
+
+  function undoDelete() {
+    if (!undo) return;
+
     setSession((s) => {
       if (!s) return s;
+
+      const newExercises = [...s.exercises];
+
+      const ex = newExercises[undo.ei];
+      if (!ex) return s;
+
+      const newSets = [...ex.sets];
+      newSets.splice(undo.si, 0, undo.set);
+
+      newExercises[undo.ei] = {
+        ...ex,
+        sets: newSets,
+      };
+
+      return {
+        ...s,
+        exercises: newExercises,
+      };
+    });
+
+    clearTimeout(undo.timeoutId);
+    setUndo(null);
+  }
+
+  function getLiveDuration(s: WorkoutSet & { timerStart?: number | null }) {
+    if (!s.timerStart) return s.duration ?? 0;
+    return (s.duration ?? 0) + Math.round((now - s.timerStart) / 1000);
+  }
+
+  function formatTime(sec: number) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function updateSet(
+    ei: number,
+    si: number,
+    patch: Partial<WorkoutSet & { timerStart: number | null }>
+  ) {
+    setSession((s) => {
+      if (!s) return s;
+
       return {
         ...s,
         exercises: s.exercises.map((e, i) =>
-          i !== ei ? e : { ...e, sets: e.sets.map((set, j) => (j !== si ? set : { ...set, ...patch })) },
+          i !== ei
+            ? e
+            : {
+                ...e,
+                sets: e.sets.map((set, j) =>
+                  j !== si ? set : { ...set, ...patch }
+                ),
+              }
         ),
       };
     });
@@ -205,16 +286,31 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
   function toggleTimer(ei: number, si: number) {
     setSession((s) => {
       if (!s) return s;
+
       const set = s.exercises[ei].sets[si];
       const now = Date.now();
+
       const patch =
         set.timerStart != null
-          ? { timerStart: null, duration: (Number(set.duration) || 0) + Math.round((now - set.timerStart) / 1000) }
+          ? {
+              timerStart: null,
+              duration:
+                (Number(set.duration) || 0) +
+                Math.round((now - set.timerStart) / 1000),
+            }
           : { timerStart: now };
+
       return {
         ...s,
         exercises: s.exercises.map((e, i) =>
-          i !== ei ? e : { ...e, sets: e.sets.map((x, j) => (j !== si ? x : { ...x, ...patch })) },
+          i !== ei
+            ? e
+            : {
+                ...e,
+                sets: e.sets.map((x, j) =>
+                  j !== si ? x : { ...x, ...patch }
+                ),
+              }
         ),
       };
     });
@@ -242,31 +338,60 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
               };
             }),
           }
-        : s,
+        : s
     );
   }
 
-  function removeSet(ei: number, si: number) {
-    setSession((s) =>
-      s
-        ? {
-            ...s,
-            exercises: s.exercises.map((e, i) =>
-              i !== ei ? e : { ...e, sets: e.sets.filter((_, j) => j !== si) },
-            ),
-          }
-        : s,
-    );
-  }
+function removeSet(ei: number, si: number) {
+  setSession((s) => {
+    if (!s) return s;
+
+    const setToDelete = s.exercises[ei].sets[si];
+
+    const updated = {
+      ...s,
+      exercises: s.exercises.map((e, i) =>
+        i !== ei
+          ? e
+          : {
+              ...e,
+              sets: e.sets.filter((_, j) => j !== si),
+            },
+      ),
+    };
+
+    // ✅ IMPORTANT: clear ANY existing undo timer before creating a new one
+    if (undo?.timeoutId) {
+      clearTimeout(undo.timeoutId);
+    }
+
+    const timeoutId = setTimeout(() => {
+      setUndo((current) => {
+        // only clear if this is still the active undo
+        if (current?.timeoutId === timeoutId) {
+          return null;
+        }
+        return current;
+      });
+    }, 3000);
+
+    setUndo({
+      ei,
+      si,
+      set: setToDelete,
+      timeoutId,
+    });
+
+    setUndoTick(0);
+
+    return updated;
+  });
+}
 
   function removeExercise(ei: number) {
-    setSession((s) => (s ? { ...s, exercises: s.exercises.filter((_, i) => i !== ei) } : s));
-  }
-
-  function fmtMMSS(sec: number) {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${String(s).padStart(2, "0")}`;
+    setSession((s) =>
+      s ? { ...s, exercises: s.exercises.filter((_, i) => i !== ei) } : s
+    );
   }
 
   return (
@@ -274,12 +399,15 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
       <header className="flex items-center justify-between">
         <input
           value={session.name}
-          onChange={(e) => setSession((s) => (s ? { ...s, name: e.target.value } : s))}
+          onChange={(e) =>
+            setSession((s) => (s ? { ...s, name: e.target.value } : s))
+          }
           className="min-w-0 flex-1 bg-transparent text-lg font-bold outline-none"
         />
+
         <div className="ml-2 flex items-center gap-1 text-sm text-muted-foreground">
           <Timer className="h-4 w-4" />
-          <span className="tabular-nums">{fmtMMSS(elapsed)}</span>
+          <span className="tabular-nums">{formatTime(elapsed)}</span>
         </div>
       </header>
 
@@ -291,10 +419,18 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
           <div key={ei} className="rounded-xl bg-card p-3">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
-                <p className="truncate font-semibold">{def?.name ?? ex.exerciseId}</p>
-                <p className="text-xs text-muted-foreground">{def?.muscle}</p>
+                <p className="truncate font-semibold">
+                  {def?.name ?? ex.exerciseId}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {def?.muscle}
+                </p>
               </div>
-              <button onClick={() => removeExercise(ei)} aria-label="Remove exercise" className="p-1 text-muted-foreground">
+
+              <button
+                onClick={() => removeExercise(ei)}
+                className="p-1 text-muted-foreground"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -303,30 +439,32 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
               <span>#</span>
               <span>{timeBased ? "Sec" : "Kg"}</span>
               <span>{timeBased ? "Distance/Notes" : "Reps"}</span>
-              <span></span>
-              <span></span>
+              <span />
+              <span />
             </div>
 
             {ex.sets.map((s, si) => (
-              <div key={si} className="mt-2 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2">
+              <div
+                key={si}
+                className="mt-2 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2"
+              >
                 <span className="text-sm font-semibold">{si + 1}</span>
 
                 {timeBased ? (
                   <>
-                    <div className="flex items-center gap-1">
-                      <NumField
-                        value={s.duration ?? 0}
-                        onCommit={(v) => updateSet(ei, si, { duration: v })}
-                        placeholder="sec"
-                      />
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-[60px] tabular-nums text-sm">
+                        {formatTime(getLiveDuration(s))}
+                      </span>
+
                       <button
                         onClick={() => toggleTimer(ei, si)}
                         className="rounded bg-secondary px-2 py-1 text-xs"
-                        aria-label={s.timerStart ? "Stop timer" : "Start timer"}
                       >
                         {s.timerStart ? "■" : "▶"}
                       </button>
                     </div>
+
                     <NumField
                       value={s.weight ?? 0}
                       onCommit={(v) => updateSet(ei, si, { weight: v })}
@@ -342,6 +480,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                       decimal
                       placeholder="0"
                     />
+
                     <NumField
                       value={s.reps ?? 0}
                       onCommit={(v) => updateSet(ei, si, { reps: v })}
@@ -351,13 +490,22 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                 )}
 
                 <button
-                  onClick={() => updateSet(ei, si, { completed: !s.completed })}
-                  aria-label="Toggle complete"
-                  className={`flex h-7 w-7 items-center justify-center rounded ${s.completed ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}
+                  onClick={() =>
+                    updateSet(ei, si, { completed: !s.completed })
+                  }
+                  className={`flex h-7 w-7 items-center justify-center rounded ${
+                    s.completed
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-muted-foreground"
+                  }`}
                 >
                   <Check className="h-4 w-4" />
                 </button>
-                <button onClick={() => removeSet(ei, si)} aria-label="Remove set" className="text-muted-foreground">
+
+                <button
+                  onClick={() => removeSet(ei, si)}
+                  className="text-muted-foreground"
+                >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -383,10 +531,27 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
         </Button>
         <Button onClick={() => onFinish(true)}>Finish</Button>
       </div>
+
+      {undo && (
+          <div className="fixed bottom-4 left-4 right-4 z-[9999] mx-auto flex max-w-md items-center justify-between rounded-lg bg-black px-4 py-3 text-white shadow-lg pointer-events-auto">
+          <span className="text-sm">
+            Set deleted{" "}
+            <span className="ml-2 text-xs text-white/70">
+              {undoSecondsLeft}s
+            </span>
+          </span>
+
+          <button
+            onClick={undoDelete}
+            className="rounded bg-white px-3 py-1 text-sm font-medium text-black"
+          >
+            Undo
+          </button>
+        </div>
+      )}
     </div>
   );
 }
-
 function NumField({
   value,
   onCommit,
