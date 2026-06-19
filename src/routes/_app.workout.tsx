@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useState, useRef } from "react";
 import { z } from "zod";
@@ -11,7 +11,7 @@ import {
 } from "@/lib/db";
 import { getExercise, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
-import { Check, Plus, Timer, Trash2 } from "lucide-react";
+import { Check, Plus, Timer, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const searchSchema = z.object({
@@ -41,6 +41,10 @@ interface ActiveSession {
     sets: UIDSet[];
   }>;
 }
+
+/* =========================
+   SET FACTORY
+========================= */
 
 function makeSet(): UIDSet {
   return {
@@ -93,13 +97,34 @@ function WorkoutPage() {
     });
   }
 
+  /* =========================
+     RENDER (EMPTY STATE)
+  ========================= */
+
   if (!active) {
     return (
-      <div className="p-4">
+      <div className="flex flex-col gap-4 px-4 pt-6">
+        <h1 className="text-2xl font-bold">Start Workout</h1>
+
         <Button onClick={() => startWorkout(null)}>
           <Plus className="mr-2 h-4 w-4" />
           Empty Workout
         </Button>
+
+        <div className="flex flex-col gap-2">
+          {(routines ?? []).map((r) => (
+            <button
+              key={r.id}
+              onClick={() => startWorkout(r)}
+              className="w-full rounded-xl bg-card px-4 py-3 text-left"
+            >
+              <p className="font-semibold">{r.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {r.exercises.length} exercises
+              </p>
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
@@ -157,7 +182,13 @@ function LiveSession({ session, setSession, onAddExercise }) {
   const swipeStart = useRef<Record<string, number>>({});
   const [undoState, setUndoState] = useState<any>(null);
 
-  const activeTimers = useRef<Record<string, number>>({});
+  /* =========================
+     SESSION TIMER
+  ========================= */
+
+  const elapsed = Math.floor(
+    (Date.now() - session.startedAt) / 1000,
+  );
 
   function fmt(sec: number) {
     const m = Math.floor(sec / 60);
@@ -165,75 +196,9 @@ function LiveSession({ session, setSession, onAddExercise }) {
     return `${m}:${String(s).padStart(2, "0")}`;
   }
 
-  function startUndo(payload: any) {
-    if (undoState?.intervalId) clearInterval(undoState.intervalId);
-
-    let seconds = 3;
-
-    const intervalId = window.setInterval(() => {
-      seconds -= 1;
-
-      setUndoState((p) =>
-        p ? { ...p, secondsLeft: seconds } : null,
-      );
-
-      if (seconds <= 0) {
-        clearInterval(intervalId);
-        setUndoState(null);
-      }
-    }, 1000);
-
-    setUndoState({ ...payload, secondsLeft: 3, intervalId });
-  }
-
-  function undoDelete() {
-    if (!undoState) return;
-
-    clearInterval(undoState.intervalId);
-
-    setSession((s) => {
-      if (!s) return s;
-
-      const exercises = [...s.exercises];
-      const ex = exercises[undoState.exerciseIndex];
-
-      ex.sets.splice(undoState.setIndex, 0, undoState.set);
-
-      exercises[undoState.exerciseIndex] = ex;
-
-      return { ...s, exercises };
-    });
-
-    setUndoState(null);
-  }
-
-  function removeSet(ei: number, si: number) {
-    setSession((s) => {
-      if (!s) return s;
-
-      const deleted = s.exercises[ei].sets[si];
-
-      const updated = {
-        ...s,
-        exercises: s.exercises.map((e, i) =>
-          i !== ei
-            ? e
-            : {
-                ...e,
-                sets: e.sets.filter((set) => set.id !== deleted.id),
-              },
-        ),
-      };
-
-      startUndo({
-        exerciseIndex: ei,
-        setIndex: si,
-        set: deleted,
-      });
-
-      return updated;
-    });
-  }
+  /* =========================
+     SET UPDATE
+  ========================= */
 
   function updateSet(ei: number, setId: string, patch: any) {
     setSession((s) => {
@@ -255,22 +220,119 @@ function LiveSession({ session, setSession, onAddExercise }) {
     });
   }
 
-  function getLiveDuration(set: any) {
-    if (!set.timerStart) return set.duration;
-    return set.duration + Math.floor((Date.now() - set.timerStart) / 1000);
+  /* =========================
+     ADD SET (FIXED)
+  ========================= */
+
+  function addSet(ei: number) {
+    setSession((s) => {
+      if (!s) return s;
+
+      return {
+        ...s,
+        exercises: s.exercises.map((e, i) =>
+          i !== ei
+            ? e
+            : {
+                ...e,
+                sets: [...e.sets, makeSet()],
+              },
+        ),
+      };
+    });
   }
 
+  /* =========================
+     DELETE + UNDO (FIXED)
+  ========================= */
+
+  function removeSet(ei: number, si: number) {
+    setSession((s) => {
+      if (!s) return s;
+
+      const deleted = s.exercises[ei].sets[si];
+
+      const updated = {
+        ...s,
+        exercises: s.exercises.map((e, i) =>
+          i !== ei
+            ? e
+            : {
+                ...e,
+                sets: e.sets.filter((set) => set.id !== deleted.id),
+              },
+        ),
+      };
+
+      setUndoState({
+        exerciseIndex: ei,
+        setIndex: si,
+        set: deleted,
+        timeout: Date.now(),
+      });
+
+      return updated;
+    });
+  }
+
+  function undoDelete() {
+    if (!undoState) return;
+
+    setSession((s) => {
+      if (!s) return s;
+
+      return {
+        ...s,
+        exercises: s.exercises.map((e, i) => {
+          if (i !== undoState.exerciseIndex) return e;
+
+          const exists = e.sets.find((x) => x.id === undoState.set.id);
+          if (exists) return e;
+
+          const sets = [...e.sets];
+          sets.splice(undoState.setIndex, 0, undoState.set);
+
+          return { ...e, sets };
+        }),
+      };
+    });
+
+    setUndoState(null);
+  }
+
+  /* =========================
+     RENDER
+  ========================= */
+
   return (
-    <div className="p-4 pb-24">
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-28">
+      {/* HEADER TIMER (RESTORED) */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-bold">{session.name}</h1>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Timer className="h-4 w-4" />
+          {fmt(elapsed)}
+        </div>
+      </div>
+
       {session.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);
         const timeBased = isTimeBased(def);
 
         return (
-          <div key={ei} className="bg-card p-3 rounded-xl mb-4">
+          <div key={ei} className="bg-card p-3 rounded-xl">
             <p className="font-semibold">{def?.name}</p>
 
-            {ex.sets.map((s) => {
+            {/* SET HEADER */}
+            <div className="grid grid-cols-5 text-xs text-muted-foreground mt-2">
+              <span>#</span>
+              <span>{timeBased ? "Time" : "Weight"}</span>
+              <span>Reps</span>
+              <span></span>
+              <span></span>
+            </div>
+
+            {ex.sets.map((s, si) => {
               const key = s.id;
 
               return (
@@ -290,31 +352,22 @@ function LiveSession({ session, setSession, onAddExercise }) {
                     delete swipeStart.current[key];
 
                     if (delta < -60) {
-                      const si = ex.sets.findIndex(
-                        (x) => x.id === s.id,
-                      );
                       removeSet(ei, si);
                     }
                   }}
                   className="grid grid-cols-5 gap-2 mt-2 items-center"
                 >
-                  <span>{ex.sets.indexOf(s) + 1}</span>
+                  <span>{si + 1}</span>
 
-                  {timeBased ? (
-                    <span className="font-mono">
-                      {fmt(getLiveDuration(s))}
-                    </span>
-                  ) : (
-                    <input
-                      value={s.weight}
-                      onChange={(e) =>
-                        updateSet(ei, s.id, {
-                          weight: Number(e.target.value),
-                        })
-                      }
-                      className="bg-secondary px-2 py-1 rounded"
-                    />
-                  )}
+                  <input
+                    value={s.weight}
+                    onChange={(e) =>
+                      updateSet(ei, s.id, {
+                        weight: Number(e.target.value),
+                      })
+                    }
+                    className="bg-secondary px-2 py-1 rounded"
+                  />
 
                   <input
                     value={s.reps}
@@ -336,31 +389,37 @@ function LiveSession({ session, setSession, onAddExercise }) {
                     <Check />
                   </button>
 
-                  <button
-                    onClick={() => {
-                      const si = ex.sets.findIndex(
-                        (x) => x.id === s.id,
-                      );
-                      removeSet(ei, si);
-                    }}
-                  >
+                  <button onClick={() => removeSet(ei, si)}>
                     <Trash2 />
                   </button>
                 </div>
               );
             })}
+
+            {/* ADD SET (RESTORED) */}
+            <button
+              onClick={() => addSet(ei)}
+              className="mt-3 w-full rounded bg-secondary py-2 text-sm"
+            >
+              + Add set
+            </button>
           </div>
         );
       })}
 
+      {/* UNDO (FIXED) */}
       {undoState && (
         <div className="fixed bottom-20 left-4 right-4 bg-black text-white p-3 rounded flex justify-between">
-          <span>
-            Set deleted — Undo ({undoState.secondsLeft})
-          </span>
+          <span>Set deleted — Undo</span>
           <button onClick={undoDelete}>Undo</button>
         </div>
       )}
+
+      {/* ADD EXERCISE */}
+      <Button onClick={onAddExercise} className="w-full">
+        <Plus className="mr-2 h-4 w-4" />
+        Add exercise
+      </Button>
     </div>
   );
 }
