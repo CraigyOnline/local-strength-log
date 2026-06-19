@@ -131,20 +131,21 @@ function HistoryDetailPage() {
   /**
    * PR CHECK (runs when editing sets)
    */
-  function checkPR(exerciseId: string, set: any) {
+  function checkPR(exerciseId: string, set: { weight?: number; reps?: number; duration?: number }) {
     const def = getExercise(exerciseId);
     if (!def) return;
+    const wid = workout?.id;
 
-    if (def.measurement === "time") {
-      if (set.duration > 0) {
-        savePR(exerciseId, "time", set.duration, workout.id);
+    if (isTimeBased(def)) {
+      if ((set.duration ?? 0) > 0) {
+        savePR(exerciseId, "time", set.duration ?? 0, wid);
       }
     } else {
-      if (set.weight > 0) {
-        savePR(exerciseId, "weight", set.weight, workout.id);
+      if ((set.weight ?? 0) > 0) {
+        savePR(exerciseId, "weight", set.weight ?? 0, wid);
       }
-      if (set.reps > 0) {
-        savePR(exerciseId, "reps", set.reps, workout.id);
+      if ((set.reps ?? 0) > 0) {
+        savePR(exerciseId, "reps", set.reps ?? 0, wid);
       }
     }
   }
