@@ -23,10 +23,10 @@ function HistoryList() {
   const workouts = useLiveQuery(
     () =>
       typeof window === "undefined"
-        ? Promise.resolve([])
+        ? Promise.resolve<Workout[]>([])
         : getDb().workouts.orderBy("startedAt").reverse().toArray(),
     [],
-  );
+  ) as Workout[] | undefined;
 
   async function remove(id: number | undefined, e: React.MouseEvent) {
     e.stopPropagation();
