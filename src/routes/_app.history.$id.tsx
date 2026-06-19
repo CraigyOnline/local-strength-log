@@ -10,7 +10,7 @@ import {
   Save,
 } from "lucide-react";
 import { getDb, type Workout, type WorkoutExerciseLog } from "@/lib/db";
-import { getExercise } from "@/lib/exercises";
+import { getExercise, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
 import { Button } from "@/components/ui/button";
 
