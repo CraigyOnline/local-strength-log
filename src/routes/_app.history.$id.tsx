@@ -80,7 +80,7 @@ function HistoryDetailPage() {
     return (
       <div className="flex flex-col gap-4 px-4 pt-6">
         <p className="text-sm text-muted-foreground">Workout not found.</p>
-        <Link to="/profile" className="text-sm text-primary underline">
+        <Link to="/history" className="text-sm text-primary underline">
           Back to history
         </Link>
       </div>
@@ -125,7 +125,7 @@ function HistoryDetailPage() {
     if (!confirm("Delete this workout?")) return;
 
     await getDb().workouts.delete(workout.id);
-    navigate({ to: "/profile" });
+    navigate({ to: "/history" });
   }
 
   /**
@@ -255,7 +255,7 @@ function HistoryDetailPage() {
     <div className="flex flex-col gap-4 px-4 pt-4 pb-8">
       {/* HEADER */}
       <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-        <button onClick={() => navigate({ to: "/profile" })}>
+        <button onClick={() => navigate({ to: "/history" })}>
           <ArrowLeft className="h-5 w-5" />
         </button>
 
