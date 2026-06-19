@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import {
   getDb,
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_app/workout")({
 });
 
 /* =========================
-   TYPES
+   TYPES (FIXED: stable IDs added)
 ========================= */
 
 type UIDSet = WorkoutSet & {
@@ -43,7 +43,7 @@ interface ActiveSession {
 }
 
 /* =========================
-   SET FACTORY
+   SET FACTORY (FIXED)
 ========================= */
 
 function makeSet(): UIDSet {
@@ -97,10 +97,6 @@ function WorkoutPage() {
     });
   }
 
-  /* =========================
-     EMPTY STATE (RESTORED UI)
-  ========================= */
-
   if (!active) {
     return (
       <div className="flex flex-col gap-4 px-4 pt-6">
@@ -148,7 +144,7 @@ function WorkoutPage() {
         session={active}
         setSession={setActive}
         onAddExercise={() => setPicking(true)}
-        onFinish={async (save) => {
+        onFinish={async (save: boolean) => {
           if (save) {
             const exercises: WorkoutExerciseLog[] =
               active.exercises.map((e) => ({
@@ -202,7 +198,7 @@ function WorkoutPage() {
 }
 
 /* =========================
-   LIVE SESSION (RESTORED UI)
+   LIVE SESSION (RESTORED ORIGINAL UI + FIXED IDS)
 ========================= */
 
 function LiveSession({ session, setSession, onAddExercise, onFinish }) {
@@ -213,17 +209,20 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }) {
     return () => clearInterval(t);
   }, []);
 
-  const swipeStart = useRef<Record<string, number>>({});
-
-  const elapsed = Math.floor(
-    (Date.now() - session.startedAt) / 1000,
+  const elapsed = Math.max(
+    0,
+    Math.round((Date.now() - session.startedAt) / 1000),
   );
 
-  function fmt(sec: number) {
+  function fmtMMSS(sec: number) {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m}:${String(s).padStart(2, "0")}`;
   }
+
+  /* =========================
+     UPDATE SET (ID SAFE)
+  ========================= */
 
   function updateSet(ei: number, setId: string, patch: any) {
     setSession((s) => {
@@ -303,11 +302,11 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }) {
 
         <div className="ml-2 flex items-center gap-1 text-sm text-muted-foreground">
           <Timer className="h-4 w-4" />
-          <span className="tabular-nums">{fmt(elapsed)}</span>
+          <span className="tabular-nums">{fmtMMSS(elapsed)}</span>
         </div>
       </header>
 
-      {/* FULL UI RESTORED */}
+      {/* FULL ORIGINAL UI RESTORED */}
       {session.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);
         const timeBased = isTimeBased(def);
@@ -329,7 +328,6 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }) {
               </button>
             </div>
 
-            {/* SET HEADER */}
             <div className="mt-3 grid grid-cols-5 text-xs text-muted-foreground">
               <span>#</span>
               <span>{timeBased ? "Sec" : "Kg"}</span>
@@ -338,54 +336,50 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }) {
               <span></span>
             </div>
 
-            {ex.sets.map((s, si) => {
-              const key = s.id;
+            {ex.sets.map((s, si) => (
+              <div
+                key={s.id}
+                className="mt-2 grid grid-cols-5 items-center gap-2"
+              >
+                <span>{si + 1}</span>
 
-              return (
-                <div
-                  key={key}
-                  className="mt-2 grid grid-cols-5 items-center gap-2"
+                <input
+                  value={s.weight}
+                  onChange={(e) =>
+                    updateSet(ei, s.id, {
+                      weight: Number(e.target.value),
+                    })
+                  }
+                  className="bg-secondary px-2 py-1 rounded"
+                />
+
+                <input
+                  value={s.reps}
+                  onChange={(e) =>
+                    updateSet(ei, s.id, {
+                      reps: Number(e.target.value),
+                    })
+                  }
+                  className="bg-secondary px-2 py-1 rounded"
+                />
+
+                <button
+                  onClick={() =>
+                    updateSet(ei, s.id, {
+                      completed: !s.completed,
+                    })
+                  }
                 >
-                  <span>{si + 1}</span>
+                  <Check />
+                </button>
 
-                  <input
-                    value={s.weight}
-                    onChange={(e) =>
-                      updateSet(ei, s.id, {
-                        weight: Number(e.target.value),
-                      })
-                    }
-                    className="bg-secondary px-2 py-1 rounded"
-                  />
+                <button onClick={() => removeSet(ei, si)}>
+                  <Trash2 />
+                </button>
+              </div>
+            ))}
 
-                  <input
-                    value={s.reps}
-                    onChange={(e) =>
-                      updateSet(ei, s.id, {
-                        reps: Number(e.target.value),
-                      })
-                    }
-                    className="bg-secondary px-2 py-1 rounded"
-                  />
-
-                  <button
-                    onClick={() =>
-                      updateSet(ei, s.id, {
-                        completed: !s.completed,
-                      })
-                    }
-                  >
-                    <Check />
-                  </button>
-
-                  <button onClick={() => removeSet(ei, si)}>
-                    <Trash2 />
-                  </button>
-                </div>
-              );
-            })}
-
-            {/* ADD SET (RESTORED) */}
+            {/* ADD SET RESTORED */}
             <button
               onClick={() => addSet(ei)}
               className="mt-3 w-full rounded bg-secondary py-2 text-sm"
