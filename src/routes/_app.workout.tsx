@@ -98,7 +98,7 @@ function WorkoutPage() {
   }
 
   /* =========================
-     RENDER (EMPTY STATE)
+     EMPTY STATE (RESTORED UI)
   ========================= */
 
   if (!active) {
@@ -111,67 +111,101 @@ function WorkoutPage() {
           Empty Workout
         </Button>
 
-        <div className="flex flex-col gap-2">
-          {(routines ?? []).map((r) => (
-            <button
-              key={r.id}
-              onClick={() => startWorkout(r)}
-              className="w-full rounded-xl bg-card px-4 py-3 text-left"
-            >
-              <p className="font-semibold">{r.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {r.exercises.length} exercises
-              </p>
-            </button>
-          ))}
+        <div>
+          <p className="mb-2 text-sm font-semibold text-muted-foreground">
+            From routine
+          </p>
+
+          {(routines ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No routines yet. <Link to="/routines">Create one</Link>.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {(routines ?? []).map((r) => (
+                <li key={r.id}>
+                  <button
+                    onClick={() => startWorkout(r)}
+                    className="w-full rounded-xl bg-card px-4 py-3 text-left"
+                  >
+                    <p className="font-semibold">{r.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.exercises.length} exercises
+                    </p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <LiveSession
-      session={active}
-      setSession={setActive}
-      onAddExercise={() => setPicking(true)}
-      onFinish={async (save) => {
-        if (save) {
-          const exercises: WorkoutExerciseLog[] = active.exercises.map(
-            (e) => ({
-              exerciseId: e.exerciseId,
-              sets: e.sets.map((s) => ({
-                weight: Number(s.weight) || 0,
-                reps: Number(s.reps) || 0,
-                duration: Number(s.duration) || 0,
-                completed: s.completed,
-              })),
-            }),
-          );
+    <>
+      <LiveSession
+        session={active}
+        setSession={setActive}
+        onAddExercise={() => setPicking(true)}
+        onFinish={async (save) => {
+          if (save) {
+            const exercises: WorkoutExerciseLog[] =
+              active.exercises.map((e) => ({
+                exerciseId: e.exerciseId,
+                sets: e.sets.map((s) => ({
+                  weight: Number(s.weight) || 0,
+                  reps: Number(s.reps) || 0,
+                  duration: Number(s.duration) || 0,
+                  completed: s.completed,
+                })),
+              }));
 
-          await getDb().workouts.add({
-            routineId: active.routine?.id,
-            name: active.name,
-            startedAt: active.startedAt,
-            endedAt: Date.now(),
-            durationSec: Math.round(
-              (Date.now() - active.startedAt) / 1000,
-            ),
-            exercises,
-          });
-        }
+            await getDb().workouts.add({
+              routineId: active.routine?.id,
+              name: active.name,
+              startedAt: active.startedAt,
+              endedAt: Date.now(),
+              durationSec: Math.round(
+                (Date.now() - active.startedAt) / 1000,
+              ),
+              exercises,
+            });
+          }
 
-        setActive(null);
-        navigate({ to: "/history" });
-      }}
-    />
+          setActive(null);
+          navigate({ to: "/history" });
+        }}
+      />
+
+      {picking && (
+        <ExercisePicker
+          onClose={() => setPicking(false)}
+          onPick={(id) => {
+            setActive((s) =>
+              s
+                ? {
+                    ...s,
+                    exercises: [
+                      ...s.exercises,
+                      { exerciseId: id, sets: [makeSet()] },
+                    ],
+                  }
+                : s,
+            );
+            setPicking(false);
+          }}
+        />
+      )}
+    </>
   );
 }
 
 /* =========================
-   LIVE SESSION
+   LIVE SESSION (RESTORED UI)
 ========================= */
 
-function LiveSession({ session, setSession, onAddExercise }) {
+function LiveSession({ session, setSession, onAddExercise, onFinish }) {
   const [, force] = useState(0);
 
   useEffect(() => {
@@ -180,11 +214,6 @@ function LiveSession({ session, setSession, onAddExercise }) {
   }, []);
 
   const swipeStart = useRef<Record<string, number>>({});
-  const [undoState, setUndoState] = useState<any>(null);
-
-  /* =========================
-     SESSION TIMER
-  ========================= */
 
   const elapsed = Math.floor(
     (Date.now() - session.startedAt) / 1000,
@@ -195,10 +224,6 @@ function LiveSession({ session, setSession, onAddExercise }) {
     const s = sec % 60;
     return `${m}:${String(s).padStart(2, "0")}`;
   }
-
-  /* =========================
-     SET UPDATE
-  ========================= */
 
   function updateSet(ei: number, setId: string, patch: any) {
     setSession((s) => {
@@ -220,114 +245,95 @@ function LiveSession({ session, setSession, onAddExercise }) {
     });
   }
 
-  /* =========================
-     ADD SET (FIXED)
-  ========================= */
-
   function addSet(ei: number) {
-    setSession((s) => {
-      if (!s) return s;
-
-      return {
-        ...s,
-        exercises: s.exercises.map((e, i) =>
-          i !== ei
-            ? e
-            : {
-                ...e,
-                sets: [...e.sets, makeSet()],
-              },
-        ),
-      };
-    });
+    setSession((s) =>
+      s
+        ? {
+            ...s,
+            exercises: s.exercises.map((e, i) =>
+              i !== ei ? e : { ...e, sets: [...e.sets, makeSet()] },
+            ),
+          }
+        : s,
+    );
   }
-
-  /* =========================
-     DELETE + UNDO (FIXED)
-  ========================= */
 
   function removeSet(ei: number, si: number) {
-    setSession((s) => {
-      if (!s) return s;
-
-      const deleted = s.exercises[ei].sets[si];
-
-      const updated = {
-        ...s,
-        exercises: s.exercises.map((e, i) =>
-          i !== ei
-            ? e
-            : {
-                ...e,
-                sets: e.sets.filter((set) => set.id !== deleted.id),
-              },
-        ),
-      };
-
-      setUndoState({
-        exerciseIndex: ei,
-        setIndex: si,
-        set: deleted,
-        timeout: Date.now(),
-      });
-
-      return updated;
-    });
+    setSession((s) =>
+      s
+        ? {
+            ...s,
+            exercises: s.exercises.map((e, i) =>
+              i !== ei
+                ? e
+                : {
+                    ...e,
+                    sets: e.sets.filter((_, j) => j !== si),
+                  },
+            ),
+          }
+        : s,
+    );
   }
 
-  function undoDelete() {
-    if (!undoState) return;
-
-    setSession((s) => {
-      if (!s) return s;
-
-      return {
-        ...s,
-        exercises: s.exercises.map((e, i) => {
-          if (i !== undoState.exerciseIndex) return e;
-
-          const exists = e.sets.find((x) => x.id === undoState.set.id);
-          if (exists) return e;
-
-          const sets = [...e.sets];
-          sets.splice(undoState.setIndex, 0, undoState.set);
-
-          return { ...e, sets };
-        }),
-      };
-    });
-
-    setUndoState(null);
+  function removeExercise(ei: number) {
+    setSession((s) =>
+      s
+        ? {
+            ...s,
+            exercises: s.exercises.filter((_, i) => i !== ei),
+          }
+        : s,
+    );
   }
-
-  /* =========================
-     RENDER
-  ========================= */
 
   return (
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-28">
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-8">
       {/* HEADER TIMER (RESTORED) */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold">{session.name}</h1>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Timer className="h-4 w-4" />
-          {fmt(elapsed)}
-        </div>
-      </div>
+      <header className="flex items-center justify-between">
+        <input
+          value={session.name}
+          onChange={(e) =>
+            setSession((s) =>
+              s ? { ...s, name: e.target.value } : s,
+            )
+          }
+          className="min-w-0 flex-1 bg-transparent text-lg font-bold outline-none"
+        />
 
+        <div className="ml-2 flex items-center gap-1 text-sm text-muted-foreground">
+          <Timer className="h-4 w-4" />
+          <span className="tabular-nums">{fmt(elapsed)}</span>
+        </div>
+      </header>
+
+      {/* FULL UI RESTORED */}
       {session.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);
         const timeBased = isTimeBased(def);
 
         return (
-          <div key={ei} className="bg-card p-3 rounded-xl">
-            <p className="font-semibold">{def?.name}</p>
+          <div key={ei} className="rounded-xl bg-card p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold">
+                  {def?.name ?? ex.exerciseId}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {def?.muscle}
+                </p>
+              </div>
+
+              <button onClick={() => removeExercise(ei)}>
+                <X />
+              </button>
+            </div>
 
             {/* SET HEADER */}
-            <div className="grid grid-cols-5 text-xs text-muted-foreground mt-2">
+            <div className="mt-3 grid grid-cols-5 text-xs text-muted-foreground">
               <span>#</span>
-              <span>{timeBased ? "Time" : "Weight"}</span>
-              <span>Reps</span>
+              <span>{timeBased ? "Sec" : "Kg"}</span>
+              <span>{timeBased ? "Notes" : "Reps"}</span>
               <span></span>
               <span></span>
             </div>
@@ -337,25 +343,8 @@ function LiveSession({ session, setSession, onAddExercise }) {
 
               return (
                 <div
-                  key={s.id}
-                  onTouchStart={(e) => {
-                    swipeStart.current[key] =
-                      e.touches[0].clientX;
-                  }}
-                  onTouchEnd={(e) => {
-                    const start = swipeStart.current[key];
-                    if (!start) return;
-
-                    const delta =
-                      e.changedTouches[0].clientX - start;
-
-                    delete swipeStart.current[key];
-
-                    if (delta < -60) {
-                      removeSet(ei, si);
-                    }
-                  }}
-                  className="grid grid-cols-5 gap-2 mt-2 items-center"
+                  key={key}
+                  className="mt-2 grid grid-cols-5 items-center gap-2"
                 >
                   <span>{si + 1}</span>
 
@@ -407,19 +396,18 @@ function LiveSession({ session, setSession, onAddExercise }) {
         );
       })}
 
-      {/* UNDO (FIXED) */}
-      {undoState && (
-        <div className="fixed bottom-20 left-4 right-4 bg-black text-white p-3 rounded flex justify-between">
-          <span>Set deleted — Undo</span>
-          <button onClick={undoDelete}>Undo</button>
-        </div>
-      )}
-
-      {/* ADD EXERCISE */}
+      {/* ACTIONS RESTORED */}
       <Button onClick={onAddExercise} className="w-full">
         <Plus className="mr-2 h-4 w-4" />
         Add exercise
       </Button>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="ghost" onClick={() => onFinish(false)}>
+          Cancel
+        </Button>
+        <Button onClick={() => onFinish(true)}>Finish</Button>
+      </div>
     </div>
   );
 }
