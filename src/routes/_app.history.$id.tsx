@@ -301,12 +301,14 @@ function HistoryDetailPage() {
       {/* EXERCISES */}
       {view.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);
+        const timeBased = isTimeBased(def);
+        const isBodyweight = def?.equipment === "Bodyweight";
 
         return (
           <div key={ei} className="rounded-xl bg-card p-4">
             <div className="flex justify-between">
               <div>
-                <p className="font-semibold">{def?.name}</p>
+                <p className="font-semibold">{def?.name || "Unknown Exercise"}</p>
                 <p className="text-xs text-muted-foreground">
                   {def?.muscle}
                 </p>
@@ -320,56 +322,124 @@ function HistoryDetailPage() {
             </div>
 
             {/* SETS */}
-            <div className="mt-2 space-y-2">
+            <div className="mt-2 space-y-3">
               {ex.sets.map((s, si) => (
-                <div key={si} className="flex gap-2 items-center">
-                  {editing ? (
-                    <>
-                      <input
-                        value={s.weight || 0}
-                        onChange={(e) =>
-                          patchSet(ei, si, {
-                            weight: Number(e.target.value),
-                          })
-                        }
-                        className="w-16 bg-secondary rounded px-2"
-                      />
+                <div key={si} className="flex gap-4 items-center justify-between py-1 text-sm border-b border-muted/10 last:border-0 pb-2 last:pb-0">
+                  
+                  <div className="flex flex-col gap-2 min-w-0 flex-1">
+                    <span className="font-semibold text-xs text-muted-foreground">Set {si + 1}</span>
 
-                      <input
-                        value={s.reps || 0}
-                        onChange={(e) =>
-                          patchSet(ei, si, {
-                            reps: Number(e.target.value),
-                          })
-                        }
-                        className="w-16 bg-secondary rounded px-2"
-                      />
+                    {editing ? (
+                      <div className="flex flex-wrap gap-4 items-center">
+                        {/* WEIGHT INPUT WITH CUSTOM STEPPERS */}
+                        {!isBodyweight && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">Weight (kg)</span>
+                            <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border border-muted/20">
+                              <button 
+                                type="button"
+                                onClick={() => patchSet(ei, si, { weight: Math.max(0, (s.weight ?? 0) - 2.5) })}
+                                className="w-8 h-full flex items-center justify-center font-bold text-lg active:bg-muted/40 transition-colors select-none"
+                              >
+                                −
+                              </button>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={s.weight ?? ""}
+                                onChange={(e) => {
+                                  const clean = e.target.value.replace(/[^0-9.]/g, "");
+                                  patchSet(ei, si, { weight: clean === "" ? 0 : Number(clean) });
+                                }}
+                                className="w-12 bg-transparent text-center font-semibold text-sm outline-none border-none h-full focus:ring-0"
+                              />
+                              <button 
+                                type="button"
+                                onClick={() => patchSet(ei, si, { weight: (s.weight ?? 0) + 2.5 })}
+                                className="w-8 h-full flex items-center justify-center font-bold text-lg active:bg-muted/40 transition-colors select-none"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
-                      <input
-                        value={s.duration || 0}
-                        onChange={(e) =>
-                          patchSet(ei, si, {
-                            duration: Number(e.target.value),
-                          })
-                        }
-                        className="w-16 bg-secondary rounded px-2"
-                      />
+                        {/* PERFORMANCE INPUT WITH CUSTOM STEPPERS (Seconds vs Reps) */}
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">
+                            {timeBased ? "Duration (sec)" : "Reps"}
+                          </span>
+                          <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border border-muted/20">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                if (timeBased) {
+                                  patchSet(ei, si, { duration: Math.max(0, (s.duration ?? 0) - 5) });
+                                } else {
+                                  patchSet(ei, si, { reps: Math.max(0, (s.reps ?? 0) - 1) });
+                                }
+                              }}
+                              className="w-8 h-full flex items-center justify-center font-bold text-lg active:bg-muted/40 transition-colors select-none"
+                            >
+                              −
+                            </button>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={(timeBased ? s.duration : s.reps) ?? ""}
+                              onChange={(e) => {
+                                const clean = e.target.value.replace(/[^0-9]/g, "");
+                                const val = clean === "" ? 0 : Number(clean);
+                                patchSet(ei, si, timeBased ? { duration: val } : { reps: val });
+                              }}
+                              className="w-12 bg-transparent text-center font-semibold text-sm outline-none border-none h-full focus:ring-0"
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                if (timeBased) {
+                                  patchSet(ei, si, { duration: (s.duration ?? 0) + 5 });
+                                } else {
+                                  patchSet(ei, si, { reps: (s.reps ?? 0) + 1 });
+                                }
+                              }}
+                              className="w-8 h-full flex items-center justify-center font-bold text-lg active:bg-muted/40 transition-colors select-none"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* READ-ONLY VIEW MODE */
+                      <div className="flex items-center gap-1.5 font-medium text-base mt-0.5">
+                        {!isBodyweight && <span>{s.weight ?? 0}kg</span>}
+                        {!isBodyweight && <span className="text-muted-foreground/30">·</span>}
+                        {timeBased ? (
+                          <span>{s.duration ?? 0}s</span>
+                        ) : (
+                          <span>{s.reps ?? 0} reps</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                      <button onClick={() => removeSet(ei, si)}>
+                  {/* RIGHT ACTION CORNER */}
+                  <div className="self-end pb-1.5">
+                    {editing ? (
+                      <button 
+                        onClick={() => removeSet(ei, si)} 
+                        className="text-muted-foreground hover:text-red-500 p-2 active:scale-95 transition-transform"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-sm">
-                        {s.weight}kg · {s.reps} reps · {s.duration || 0}s
-                      </span>
+                    ) : (
+                      s.completed && (
+                        <Check className="h-5 w-5 text-primary stroke-[3]" />
+                      )
+                    )}
+                  </div>
 
-                      {s.completed && (
-                        <Check className="h-4 w-4 text-primary" />
-                      )}
-                    </>
-                  )}
                 </div>
               ))}
             </div>
@@ -377,7 +447,7 @@ function HistoryDetailPage() {
             {editing && (
               <button
                 onClick={() => addSet(ei)}
-                className="mt-2 text-sm text-muted-foreground"
+                className="mt-4 flex items-center justify-center w-full py-2 bg-secondary/50 hover:bg-secondary text-xs font-semibold rounded-lg text-primary transition-colors"
               >
                 + Add set
               </button>
@@ -385,6 +455,8 @@ function HistoryDetailPage() {
           </div>
         );
       })}
+
+
 
       {/* ACTIONS */}
       {editing ? (
