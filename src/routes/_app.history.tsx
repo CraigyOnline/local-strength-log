@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { getDb } from "@/lib/db";
+import { getDb, type Workout } from "@/lib/db";
 import { getExercise } from "@/lib/exercises";
 import { Trash2 } from "lucide-react";
 
