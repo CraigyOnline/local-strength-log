@@ -1,10 +1,11 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { User, ListChecks, Play } from "lucide-react";
+import { User, ListChecks, Play, History } from "lucide-react";
 
 const tabs = [
   { to: "/profile", label: "Profile", Icon: User },
   { to: "/routines", label: "Routines", Icon: ListChecks },
   { to: "/workout", label: "Workout", Icon: Play },
+  { to: "/history", label: "History", Icon: History },
 ] as const;
 
 export function BottomTabs() {
