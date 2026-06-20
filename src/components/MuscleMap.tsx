@@ -52,7 +52,7 @@ const secSvgs: Record<number, string> = {
   9: sec9, 10: sec10, 11: sec11, 12: sec12, 13: sec13, 14: sec14, 15: sec15, 16: sec16,
 };
 
-const muscleIdMap: Partial<Record<MuscleGroup, number>> = {
+const muscleIdMap: Record<string, number> = {
   Shoulders: 2,
   Chest: 4,
   Biceps: 1,
@@ -68,7 +68,7 @@ const muscleIdMap: Partial<Record<MuscleGroup, number>> = {
   Forearms: 13,
   Obliques: 14,
   LowerCalves: 15,
-} as Partial<Record<MuscleGroup, number>>;
+};
 
 const ASPECT = "200 / 369";
 
