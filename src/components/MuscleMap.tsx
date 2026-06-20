@@ -100,7 +100,7 @@ function Panel({
   intensity: Partial<Record<MuscleGroup, number>>;
   activeMuscle?: MuscleGroup | null;
 }) {
-  const entries = Object.entries(muscleIdMap) as [MuscleGroup, number][];
+  const entries = Object.entries(muscleIdMap);
 
   return (
     <div
