@@ -32,10 +32,9 @@ function HistoryDetailPage() {
   const [draft, setDraft] = useState<Workout | null>(null);
   const [picking, setPicking] = useState(false);
 
-  // Undo state
+  // Undo state — single action, 3s window, identity-based
   const [undo, setUndo] = useState<null | {
-    ei: number;
-    si: number;
+    exerciseId: string;
     set: WorkoutExerciseLog['sets'][0];
     timeoutId: ReturnType<typeof setTimeout>;
     startTime: number;
@@ -50,6 +49,11 @@ function HistoryDetailPage() {
     }, 100);
     return () => clearInterval(t);
   }, [undo]);
+
+  function newSetId(): string {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+    return `s_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  }
 
   useEffect(() => {
     const n = Number(id);
@@ -81,10 +85,15 @@ function HistoryDetailPage() {
 
   function undoDelete() {
     if (!undo) return;
+    const { exerciseId, set } = undo;
     setDraft((d) => {
       if (!d) return d;
+      const exIdx = d.exercises.findIndex((e) => e.exerciseId === exerciseId);
+      if (exIdx === -1) return d;
+      const ex = d.exercises[exIdx];
+      if (set.id && ex.sets.some((x) => x.id === set.id)) return d;
       const newExercises = [...d.exercises];
-      newExercises[undo.ei].sets.splice(undo.si, 0, undo.set);
+      newExercises[exIdx] = { ...ex, sets: [...ex.sets, set] };
       return { ...d, exercises: newExercises };
     });
     clearTimeout(undo.timeoutId);
@@ -113,7 +122,7 @@ function HistoryDetailPage() {
       setUndo(null);
       setTimeLeft(3);
     }, 3000);
-    setUndo({ ei, si, set: setToDelete, timeoutId, startTime: Date.now() });
+    setUndo({ exerciseId: draft.exercises[ei].exerciseId, set: setToDelete, timeoutId, startTime: Date.now() });
     setTimeLeft(3);
   }
 
@@ -139,7 +148,7 @@ function HistoryDetailPage() {
   }
 
   function addSet(ei: number) {
-    setDraft((d) => d ? { ...d, exercises: d.exercises.map((e, i) => i !== ei ? e : { ...e, sets: [...e.sets, { weight: e.sets.at(-1)?.weight ?? 0, reps: e.sets.at(-1)?.reps ?? 0, duration: e.sets.at(-1)?.duration ?? 0, completed: true }] }) } : d);
+    setDraft((d) => d ? { ...d, exercises: d.exercises.map((e, i) => i !== ei ? e : { ...e, sets: [...e.sets, { id: newSetId(), weight: e.sets.at(-1)?.weight ?? 0, reps: e.sets.at(-1)?.reps ?? 0, duration: e.sets.at(-1)?.duration ?? 0, completed: true }] }) } : d);
   }
 
   function removeExercise(ei: number) {
@@ -147,7 +156,7 @@ function HistoryDetailPage() {
   }
 
   function addExercise(id: string) {
-    setDraft((d) => d ? { ...d, exercises: [...d.exercises, { exerciseId: id, sets: [{ weight: 0, reps: 0, duration: 0, completed: true }] }] } : d);
+    setDraft((d) => d ? { ...d, exercises: [...d.exercises, { exerciseId: id, sets: [{ id: newSetId(), weight: 0, reps: 0, duration: 0, completed: true }] }] } : d);
     setPicking(false);
   }
 

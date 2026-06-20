@@ -19,6 +19,9 @@ export interface Routine {
  * WORKOUTS
  */
 export interface WorkoutSet {
+  // 🆕 stable identity for undo / list reconciliation
+  id?: string;
+
   weight: number;
   reps: number;
 

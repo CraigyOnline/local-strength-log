@@ -27,8 +27,13 @@ interface ActiveSession {
   }>;
 }
 
+function newId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `s_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
 function makeSet(): WorkoutSet & { timerStart: number | null } {
-  return { weight: 0, reps: 0, duration: 0, completed: false, timerStart: null };
+  return { id: newId(), weight: 0, reps: 0, duration: 0, completed: false, timerStart: null };
 }
 
 function WorkoutPage() {
@@ -194,11 +199,10 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
   const elapsed = Math.max(0, Math.round((now - session.startedAt) / 1000));
 
   // =========================
-  // 🔥 UNDO STATE
+  // 🔥 UNDO STATE — single action, 3s window, identity-based
   // =========================
   const [undo, setUndo] = useState<null | {
-    ei: number;
-    si: number;
+    exerciseId: string;
     set: WorkoutSet & { timerStart?: number | null };
     timeoutId: ReturnType<typeof setTimeout>;
   }>(null);
@@ -221,27 +225,22 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
 
   function undoDelete() {
     if (!undo) return;
+    const { exerciseId, set } = undo;
 
     setSession((s) => {
       if (!s) return s;
 
+      const exIdx = s.exercises.findIndex((e) => e.exerciseId === exerciseId);
+      if (exIdx === -1) return s;
+
+      const ex = s.exercises[exIdx];
+      // dedupe: skip if a set with same id already exists
+      if (set.id && ex.sets.some((x) => x.id === set.id)) return s;
+
       const newExercises = [...s.exercises];
+      newExercises[exIdx] = { ...ex, sets: [...ex.sets, set] };
 
-      const ex = newExercises[undo.ei];
-      if (!ex) return s;
-
-      const newSets = [...ex.sets];
-      newSets.splice(undo.si, 0, undo.set);
-
-      newExercises[undo.ei] = {
-        ...ex,
-        sets: newSets,
-      };
-
-      return {
-        ...s,
-        exercises: newExercises,
-      };
+      return { ...s, exercises: newExercises };
     });
 
     clearTimeout(undo.timeoutId);
@@ -376,8 +375,7 @@ function removeSet(ei: number, si: number) {
     }, 3000);
 
     setUndo({
-      ei,
-      si,
+      exerciseId: s.exercises[ei].exerciseId,
       set: setToDelete,
       timeoutId,
     });
