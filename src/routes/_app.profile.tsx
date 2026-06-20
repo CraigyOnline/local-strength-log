@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useMemo, useState, type ReactNode } from "react";
 import { getDb, type Workout } from "@/lib/db";
 import { getExercise, MUSCLE_GROUPS, type MuscleGroup } from "@/lib/exercises";
-import { Dumbbell, Calendar, Trophy, Flame } from "lucide-react";
+import { Activity, TrendingUp, CalendarDays, BarChart3 } from "lucide-react";
 import { MuscleMap } from "@/components/MuscleMap";
 
 const MOTIVATIONAL_MESSAGES = [
@@ -14,7 +14,7 @@ const MOTIVATIONAL_MESSAGES = [
   "Make yourself proud.",
   "Small steps every day add up.",
   "Sweat now, shine later.",
-  "The only workout you regret is the one that didn't happen.",
+  "The only bad workout is the one that didn't happen.",
 ] as const;
 
 export const Route = createFileRoute("/_app/profile")({
@@ -31,9 +31,17 @@ export const Route = createFileRoute("/_app/profile")({
 });
 
 function ProfilePage() {
+  const navigate = useNavigate();
+
   const workouts = useLiveQuery(async () => {
     if (typeof window === "undefined") return [];
     return getDb().workouts.orderBy("startedAt").reverse().toArray();
+  }, []);
+
+  const lastWorkout = useLiveQuery(async () => {
+    if (typeof window === "undefined") return null;
+    const all = await getDb().workouts.orderBy("startedAt").reverse().limit(1).toArray();
+    return all?.[0] ?? null;
   }, []);
 
   const [selectedMuscle, setSelectedMuscle] = useState<MuscleGroup | null>(null);
@@ -44,68 +52,109 @@ function ProfilePage() {
 
   const todayKey = Math.floor(Date.now() / 86400000);
 
-  const welcomeMessage = useMemo(() => {
-    if (!workouts?.length) return "Ready to start your fitness journey?";
-    if (stats.streak >= 30) return "30+ day streak. You're on fire.";
-    if (stats.streak >= 7) return "A full week of consistency. Keep it going.";
-    if (stats.total >= 100) return "100 workouts completed. Huge achievement.";
+  const message = useMemo(() => {
+    if (!workouts?.length) return "Start your first workout today.";
+    if (stats.total >= 50) return "Momentum is building.";
     return MOTIVATIONAL_MESSAGES[todayKey % MOTIVATIONAL_MESSAGES.length];
   }, [workouts, stats, todayKey]);
 
-  const summaryLine = useMemo(() => {
-    if (!workouts?.length) return "No workouts yet — start your first session.";
-    return `${stats.total} workouts · ${stats.streak} day streak · ${Math.round(
-      stats.totalVolume
-    ).toLocaleString()} kg total volume`;
-  }, [workouts, stats]);
+  const lastSummary = useMemo(() => {
+    if (!lastWorkout) return null;
 
-  const topMuscleLabel = useMemo(() => {
-    const top = Object.entries(intensity).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0];
-    if (!top) return "No training data yet";
-    return `Most active: ${top[0]} (${Math.round((top[1] ?? 0) * 100)}%)`;
-  }, [intensity]);
+    const sets = lastWorkout.exercises.reduce(
+      (a, e) => a + e.sets.filter((s) => s.completed).length,
+      0
+    );
+
+    const muscles = new Set(
+      lastWorkout.exercises.map((e) => getExercise(e.exerciseId)?.muscle).filter(Boolean)
+    );
+
+    return {
+      name: lastWorkout.name,
+      duration: lastWorkout.durationSec,
+      sets,
+      muscles: Array.from(muscles).slice(0, 2),
+      id: lastWorkout.id,
+    };
+  }, [lastWorkout]);
 
   return (
-    <div className="flex flex-col gap-8 px-4 pt-6 pb-10">
+    <div className="flex flex-col gap-6 px-4 pt-6">
 
-      {/* HEADER (clean + motivational + context) */}
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
-
-        <p className="text-sm text-muted-foreground leading-snug">
-          {welcomeMessage}
-        </p>
-
-        <p className="text-xs text-muted-foreground/80">
-          {summaryLine}
-        </p>
-      </header>
-
-      {/* MUSCLE MAP (now behaves like a live body report) */}
-      <section className="rounded-2xl border border-border/40 bg-card p-5 shadow-sm">
-
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Training Focus</h2>
-
-            <p className="text-xs text-muted-foreground">
-              {topMuscleLabel}
-            </p>
-          </div>
-
-          {selectedMuscle && (
-            <button
-              onClick={() => setSelectedMuscle(null)}
-              className="text-xs font-medium text-primary"
-            >
-              Clear
-            </button>
-          )}
+      {/* HEADER */}
+      <header className="flex items-center gap-4">
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <BarChart3 className="h-6 w-6" />
         </div>
 
-        {/* BODY VISUAL */}
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-bold tracking-tight">
+            Training Overview
+          </h1>
+
+          <div className="mt-1 inline-flex items-center rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
+            {message}
+          </div>
+        </div>
+      </header>
+
+      {/* LAST WORKOUT (NEW CORE MODULE) */}
+      {lastSummary && (
         <div
-          className={`mb-5 rounded-xl p-4 transition-colors duration-300 ${
+          onClick={() =>
+            lastSummary.id &&
+            navigate({ to: "/history/$id", params: { id: String(lastSummary.id) } })
+          }
+          className="rounded-2xl bg-card p-4 active:scale-[0.99] transition cursor-pointer"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold">Last workout</p>
+            <p className="text-xs text-muted-foreground">Tap to view</p>
+          </div>
+
+          <p className="truncate font-bold">{lastSummary.name}</p>
+
+          <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span>{Math.round(lastSummary.duration / 60)} min</span>
+            <span>{lastSummary.sets} sets</span>
+            {lastSummary.muscles.length > 0 && (
+              <span>{lastSummary.muscles.join(", ")}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* STATS */}
+      <section className="grid grid-cols-3 gap-3">
+        <StatCard
+          icon={<Activity className="h-4 w-4" />}
+          label="Sessions"
+          value={stats.total.toString()}
+        />
+        <StatCard
+          icon={<TrendingUp className="h-4 w-4" />}
+          label="Volume"
+          value={Math.round(stats.totalVolume).toLocaleString()}
+        />
+        <StatCard
+          icon={<CalendarDays className="h-4 w-4" />}
+          label="Active days"
+          value={stats.thisWeek.toString()}
+        />
+      </section>
+
+      {/* MUSCLE MAP */}
+      <section className="rounded-2xl border border-border/50 bg-card p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold">Muscle Activity</h2>
+          <p className="text-xs text-muted-foreground">
+            Based on completed sets • Tap to explore
+          </p>
+        </div>
+
+        <div
+          className={`mb-5 rounded-xl p-3 ${
             selectedMuscle ? "bg-primary/10" : "bg-secondary/20"
           }`}
         >
@@ -116,27 +165,22 @@ function ProfilePage() {
           />
         </div>
 
-        {/* INTENSITY LIST */}
         <div className="space-y-3">
           {MUSCLE_GROUPS.filter(
             (m) => m !== "Cardio" && (intensity[m] ?? 0) > 0
           )
             .sort((a, b) => (intensity[b] ?? 0) - (intensity[a] ?? 0))
-            .slice(0, 6)
+            .slice(0, 7)
             .map((m) => {
               const value = Math.round((intensity[m] ?? 0) * 100);
               const isSelected = selectedMuscle === m;
-              const isDimmed = selectedMuscle && !isSelected;
+              const dim = selectedMuscle && !isSelected;
 
               return (
                 <div
                   key={m}
-                  className={`transition-opacity duration-200 ${
-                    isDimmed ? "opacity-30" : "opacity-100"
-                  }`}
-                  onClick={() =>
-                    setSelectedMuscle((prev) => (prev === m ? null : m))
-                  }
+                  className={dim ? "opacity-30" : "opacity-100"}
+                  onClick={() => setSelectedMuscle((p) => (p === m ? null : m))}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setDrilldownMuscle(m);
@@ -144,14 +188,12 @@ function ProfilePage() {
                 >
                   <div className="mb-1 flex justify-between text-xs">
                     <span className="text-muted-foreground">{m}</span>
-                    <span className="tabular-nums font-semibold">{value}%</span>
+                    <span className="font-semibold tabular-nums">{value}%</span>
                   </div>
 
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                  <div className="h-2 w-full rounded-full bg-secondary">
                     <div
-                      className={`h-full transition-all duration-300 ${
-                        isSelected ? "bg-primary" : "bg-primary/70"
-                      }`}
+                      className="h-full bg-primary transition-all"
                       style={{ width: `${value}%` }}
                     />
                   </div>
@@ -159,54 +201,40 @@ function ProfilePage() {
               );
             })}
         </div>
+      </section>
 
-        {/* SCALE */}
-        <div className="mt-4 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>Low activation</span>
-          <div className="mx-2 h-1 flex-1 rounded-full bg-gradient-to-r from-muted to-primary/60" />
-          <span>High activation</span>
-        </div>
-
-        {/* DRILLDOWN (unchanged behaviour) */}
-        {drilldownMuscle && (
-          <div className="fixed inset-0 z-50 flex items-end bg-black/40">
-            <div className="w-full rounded-t-2xl bg-card p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-base font-semibold">{drilldownMuscle}</h3>
-                <button
-                  onClick={() => setDrilldownMuscle(null)}
-                  className="text-sm text-muted-foreground"
-                >
-                  Close
-                </button>
-              </div>
-
+      {/* DRILLDOWN */}
+      {drilldownMuscle && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/40">
+          <div className="w-full rounded-t-2xl bg-card p-5">
+            <div className="mb-3 flex justify-between">
+              <h3 className="font-semibold">{drilldownMuscle}</h3>
               <button
-                onClick={() => {
-                  setSelectedMuscle(drilldownMuscle);
-                  setDrilldownMuscle(null);
-                }}
-                className="w-full rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground"
+                onClick={() => setDrilldownMuscle(null)}
+                className="text-sm text-muted-foreground"
               >
-                Focus this muscle
+                Close
               </button>
             </div>
-          </div>
-        )}
-      </section>
 
-      {/* STATS (unchanged logic, slightly secondary visually) */}
-      <section className="grid grid-cols-2 gap-3 opacity-90">
-        <StatCard icon={<Dumbbell className="h-4 w-4" />} label="Workouts" value={stats.total.toString()} />
-        <StatCard icon={<Flame className="h-4 w-4" />} label="Streak" value={`${stats.streak} days`} />
-        <StatCard icon={<Trophy className="h-4 w-4" />} label="Volume" value={Math.round(stats.totalVolume).toLocaleString()} />
-        <StatCard icon={<Calendar className="h-4 w-4" />} label="This week" value={stats.thisWeek.toString()} />
-      </section>
+            <button
+              onClick={() => {
+                setSelectedMuscle(drilldownMuscle);
+                setDrilldownMuscle(null);
+              }}
+              className="w-full rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground"
+            >
+              Focus this muscle
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* unchanged */
+/* ===================== */
+
 function StatCard({
   icon,
   label,
@@ -222,12 +250,13 @@ function StatCard({
         {icon}
         <span className="text-xs">{label}</span>
       </div>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
+      <p className="mt-1 text-xl font-bold">{value}</p>
     </div>
   );
 }
 
-/* unchanged logic */
+/* ===================== */
+
 function computeStats(workouts: Workout[]) {
   const total = workouts.length;
 
@@ -247,30 +276,22 @@ function computeStats(workouts: Workout[]) {
   }, 0);
 
   const weekAgo = Date.now() - 7 * 86400000;
-  const thisWeek = workouts.filter((w) => w.startedAt >= weekAgo).length;
 
-  const days = new Set(
-    workouts.map((w) => {
-      const d = new Date(w.startedAt);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime();
-    })
-  );
+  const activeDays = new Set(
+    workouts
+      .filter((w) => w.startedAt >= weekAgo)
+      .map((w) => {
+        const d = new Date(w.startedAt);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      })
+  ).size;
 
-  let streak = 0;
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
-
-  if (!days.has(cursor.getTime())) {
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  while (days.has(cursor.getTime())) {
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  return { total, totalVolume, thisWeek, streak };
+  return {
+    total,
+    totalVolume,
+    thisWeek: activeDays,
+  };
 }
 
 function computeMuscleIntensity(workouts: Workout[]) {
