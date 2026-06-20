@@ -7,6 +7,7 @@ import { getExercise, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
 import { Check, Plus, Timer, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WorkoutSummary } from "@/components/WorkoutSummary";
 
 const searchSchema = z.object({
   routineId: z.coerce.number().optional(),
@@ -50,6 +51,7 @@ function WorkoutPage() {
 
   const [active, setActive] = useState<ActiveSession | null>(null);
   const [picking, setPicking] = useState(false);
+  const [summary, setSummary] = useState<Workout | null>(null);
 
   // Auto-start from ?routineId=...
   useEffect(() => {
@@ -70,6 +72,28 @@ function WorkoutPage() {
           sets: Array.from({ length: Math.max(1, e.sets) }, () => makeSet()),
         })) ?? [],
     });
+  }
+
+  if (summary) {
+    return (
+      <div className="flex flex-col gap-4 px-4 pt-6 pb-8">
+        <h1 className="text-2xl font-bold">Workout Complete 🎉</h1>
+        <WorkoutSummary
+          name={summary.name}
+          durationSec={summary.durationSec}
+          exercises={summary.exercises}
+          showName
+        />
+        <Button
+          onClick={() => {
+            setSummary(null);
+            navigate({ to: "/history" });
+          }}
+        >
+          Done
+        </Button>
+      </div>
+    );
   }
 
   if (!active) {
@@ -145,7 +169,10 @@ function WorkoutPage() {
                 exercises,
               };
               try {
-                await getDb().workouts.add(workout);
+                const newId = await getDb().workouts.add(workout);
+                setActive(null);
+                setSummary({ ...workout, id: newId as number });
+                return;
               } catch (err) {
                 console.error("Failed to save workout", err);
                 alert("Failed to save workout. See console.");
