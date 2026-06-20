@@ -7,6 +7,7 @@ import { getExercise, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
 import { Check, Plus, Timer, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WorkoutSummary } from "@/components/WorkoutSummary";
 
 const searchSchema = z.object({
   routineId: z.coerce.number().optional(),
