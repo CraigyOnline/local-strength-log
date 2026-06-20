@@ -85,10 +85,15 @@ function HistoryDetailPage() {
 
   function undoDelete() {
     if (!undo) return;
+    const { exerciseId, set } = undo;
     setDraft((d) => {
       if (!d) return d;
+      const exIdx = d.exercises.findIndex((e) => e.exerciseId === exerciseId);
+      if (exIdx === -1) return d;
+      const ex = d.exercises[exIdx];
+      if (set.id && ex.sets.some((x) => x.id === set.id)) return d;
       const newExercises = [...d.exercises];
-      newExercises[undo.ei].sets.splice(undo.si, 0, undo.set);
+      newExercises[exIdx] = { ...ex, sets: [...ex.sets, set] };
       return { ...d, exercises: newExercises };
     });
     clearTimeout(undo.timeoutId);
@@ -117,7 +122,7 @@ function HistoryDetailPage() {
       setUndo(null);
       setTimeLeft(3);
     }, 3000);
-    setUndo({ ei, si, set: setToDelete, timeoutId, startTime: Date.now() });
+    setUndo({ exerciseId: draft.exercises[ei].exerciseId, set: setToDelete, timeoutId, startTime: Date.now() });
     setTimeLeft(3);
   }
 
