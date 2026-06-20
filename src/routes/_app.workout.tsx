@@ -51,6 +51,7 @@ function WorkoutPage() {
 
   const [active, setActive] = useState<ActiveSession | null>(null);
   const [picking, setPicking] = useState(false);
+  const [summary, setSummary] = useState<Workout | null>(null);
 
   // Auto-start from ?routineId=...
   useEffect(() => {
@@ -71,6 +72,28 @@ function WorkoutPage() {
           sets: Array.from({ length: Math.max(1, e.sets) }, () => makeSet()),
         })) ?? [],
     });
+  }
+
+  if (summary) {
+    return (
+      <div className="flex flex-col gap-4 px-4 pt-6 pb-8">
+        <h1 className="text-2xl font-bold">Workout Complete 🎉</h1>
+        <WorkoutSummary
+          name={summary.name}
+          durationSec={summary.durationSec}
+          exercises={summary.exercises}
+          showName
+        />
+        <Button
+          onClick={() => {
+            setSummary(null);
+            navigate({ to: "/history" });
+          }}
+        >
+          Done
+        </Button>
+      </div>
+    );
   }
 
   if (!active) {
