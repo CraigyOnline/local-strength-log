@@ -32,10 +32,9 @@ function HistoryDetailPage() {
   const [draft, setDraft] = useState<Workout | null>(null);
   const [picking, setPicking] = useState(false);
 
-  // Undo state
+  // Undo state — single action, 3s window, identity-based
   const [undo, setUndo] = useState<null | {
-    ei: number;
-    si: number;
+    exerciseId: string;
     set: WorkoutExerciseLog['sets'][0];
     timeoutId: ReturnType<typeof setTimeout>;
     startTime: number;
@@ -50,6 +49,11 @@ function HistoryDetailPage() {
     }, 100);
     return () => clearInterval(t);
   }, [undo]);
+
+  function newSetId(): string {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+    return `s_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  }
 
   useEffect(() => {
     const n = Number(id);
