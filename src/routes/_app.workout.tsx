@@ -169,7 +169,10 @@ function WorkoutPage() {
                 exercises,
               };
               try {
-                await getDb().workouts.add(workout);
+                const newId = await getDb().workouts.add(workout);
+                setActive(null);
+                setSummary({ ...workout, id: newId as number });
+                return;
               } catch (err) {
                 console.error("Failed to save workout", err);
                 alert("Failed to save workout. See console.");
