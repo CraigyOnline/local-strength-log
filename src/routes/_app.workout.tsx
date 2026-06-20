@@ -27,8 +27,13 @@ interface ActiveSession {
   }>;
 }
 
+function newId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `s_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
 function makeSet(): WorkoutSet & { timerStart: number | null } {
-  return { weight: 0, reps: 0, duration: 0, completed: false, timerStart: null };
+  return { id: newId(), weight: 0, reps: 0, duration: 0, completed: false, timerStart: null };
 }
 
 function WorkoutPage() {
