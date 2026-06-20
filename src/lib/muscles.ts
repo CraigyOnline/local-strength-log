@@ -23,7 +23,6 @@ export const muscleIdToSvg: Record<number, string> = {
 export const muscleNameToId: Partial<Record<MuscleGroup, number>> = {
   Biceps: 1,
   Shoulders: 2,
-  Serratus: 3 as unknown as number, // not in MuscleGroup union; keep for completeness
   Chest: 4,
   Triceps: 5,
   Abs: 6,
@@ -36,7 +35,7 @@ export const muscleNameToId: Partial<Record<MuscleGroup, number>> = {
   Forearms: 13,
   Obliques: 14,
   LowerBack: 9,
-} as Partial<Record<MuscleGroup, number>>;
+};
 
 /**
  * Computes activation intensity per MuscleGroup from a workout.
