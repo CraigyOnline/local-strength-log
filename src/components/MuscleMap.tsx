@@ -1,135 +1,169 @@
 import type { MuscleGroup } from "@/lib/exercises";
 
+import frontBase from "@/assets/muscles/base/muscular_system_front.svg";
+import backBase from "@/assets/muscles/base/muscular_system_back.svg";
+
+import main1 from "@/assets/muscles/main/muscle-1.svg";
+import main2 from "@/assets/muscles/main/muscle-2.svg";
+import main3 from "@/assets/muscles/main/muscle-3.svg";
+import main4 from "@/assets/muscles/main/muscle-4.svg";
+import main5 from "@/assets/muscles/main/muscle-5.svg";
+import main6 from "@/assets/muscles/main/muscle-6.svg";
+import main7 from "@/assets/muscles/main/muscle-7.svg";
+import main8 from "@/assets/muscles/main/muscle-8.svg";
+import main9 from "@/assets/muscles/main/muscle-9.svg";
+import main10 from "@/assets/muscles/main/muscle-10.svg";
+import main11 from "@/assets/muscles/main/muscle-11.svg";
+import main12 from "@/assets/muscles/main/muscle-12.svg";
+import main13 from "@/assets/muscles/main/muscle-13.svg";
+import main14 from "@/assets/muscles/main/muscle-14.svg";
+import main15 from "@/assets/muscles/main/muscle-15.svg";
+import main16 from "@/assets/muscles/main/muscle-16.svg";
+
+import sec1 from "@/assets/muscles/secondary/muscle-1.svg";
+import sec2 from "@/assets/muscles/secondary/muscle-2.svg";
+import sec3 from "@/assets/muscles/secondary/muscle-3.svg";
+import sec4 from "@/assets/muscles/secondary/muscle-4.svg";
+import sec5 from "@/assets/muscles/secondary/muscle-5.svg";
+import sec6 from "@/assets/muscles/secondary/muscle-6.svg";
+import sec7 from "@/assets/muscles/secondary/muscle-7.svg";
+import sec8 from "@/assets/muscles/secondary/muscle-8.svg";
+import sec9 from "@/assets/muscles/secondary/muscle-9.svg";
+import sec10 from "@/assets/muscles/secondary/muscle-10.svg";
+import sec11 from "@/assets/muscles/secondary/muscle-11.svg";
+import sec12 from "@/assets/muscles/secondary/muscle-12.svg";
+import sec13 from "@/assets/muscles/secondary/muscle-13.svg";
+import sec14 from "@/assets/muscles/secondary/muscle-14.svg";
+import sec15 from "@/assets/muscles/secondary/muscle-15.svg";
+import sec16 from "@/assets/muscles/secondary/muscle-16.svg";
+
 interface MuscleMapProps {
   intensity: Partial<Record<MuscleGroup, number>>;
   activeMuscle?: MuscleGroup | null;
   className?: string;
 }
 
-/**
- * Stylized front/back silhouette.
- * Darker regions indicate more training volume.
- */
+const mainSvgs: Record<number, string> = {
+  1: main1, 2: main2, 3: main3, 4: main4, 5: main5, 6: main6, 7: main7, 8: main8,
+  9: main9, 10: main10, 11: main11, 12: main12, 13: main13, 14: main14, 15: main15, 16: main16,
+};
+const secSvgs: Record<number, string> = {
+  1: sec1, 2: sec2, 3: sec3, 4: sec4, 5: sec5, 6: sec6, 7: sec7, 8: sec8,
+  9: sec9, 10: sec10, 11: sec11, 12: sec12, 13: sec13, 14: sec14, 15: sec15, 16: sec16,
+};
+
+const muscleIdMap: Record<string, number> = {
+  Shoulders: 2,
+  Chest: 4,
+  Biceps: 1,
+  Triceps: 5,
+  Abs: 6,
+  Calves: 7,
+  Glutes: 8,
+  UpperBack: 9,
+  Quads: 10,
+  Hamstrings: 11,
+  Lats: 12,
+  Serratus: 3,
+  Forearms: 13,
+  Obliques: 14,
+  LowerCalves: 15,
+};
+
+const ASPECT = "200 / 369";
+
+function Layer({ src, opacity }: { src: string; opacity: number }) {
+  return (
+    <img
+      src={src}
+      alt=""
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        opacity,
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
+function Panel({
+  base,
+  intensity,
+  activeMuscle,
+}: {
+  base: string;
+  intensity: Partial<Record<MuscleGroup, number>>;
+  activeMuscle?: MuscleGroup | null;
+}) {
+  const entries = Object.entries(muscleIdMap);
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        flex: 1,
+        aspectRatio: ASPECT,
+        maxHeight: "100%",
+      }}
+    >
+      <img
+        src={base}
+        alt=""
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+        }}
+      />
+      {entries.map(([muscle, id]) => {
+        const raw = intensity[muscle as MuscleGroup];
+        const hasIntensity = typeof raw === "number" && raw > 0;
+        const v = Math.max(0, Math.min(1, raw ?? 0));
+        const dim =
+          activeMuscle && activeMuscle !== muscle ? 0.4 : 1;
+
+        const secOpacity = hasIntensity
+          ? (0.05 + v * 0.5) * dim
+          : 0.05;
+        const mainOpacity = hasIntensity ? (0.15 + v * 0.85) * dim : 0;
+
+        return (
+          <div key={muscle}>
+            {secSvgs[id] && <Layer src={secSvgs[id]} opacity={secOpacity} />}
+            {mainOpacity > 0 && mainSvgs[id] && (
+              <Layer src={mainSvgs[id]} opacity={mainOpacity} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function MuscleMap({
   intensity,
   activeMuscle,
   className,
 }: MuscleMapProps) {
-  const c = (m: MuscleGroup) => {
-    const v = Math.max(0, Math.min(1, intensity[m] ?? 0));
-
-    // If a muscle is selected, dim everything else
-    if (activeMuscle && activeMuscle !== m) {
-      return "var(--color-muted)";
-    }
-
-    const alpha = 0.12 + v * 0.85;
-
-    return `color-mix(in oklab, var(--color-primary) ${Math.round(
-      alpha * 100,
-    )}%, var(--color-muted) ${Math.round((1 - alpha) * 100)}%)`;
-  };
-
-  const stroke = "var(--color-border)";
-
   return (
-    <svg
-      viewBox="0 0 360 260"
+    <div
       className={className}
-      xmlns="http://www.w3.org/2000/svg"
-      aria-label="Muscle activation map"
+      style={{
+        display: "flex",
+        gap: 16,
+        width: "100%",
+        alignItems: "flex-start",
+      }}
     >
-      {/* ================= FRONT ================= */}
-      <g transform="translate(20,10)">
-        <text
-          x="70"
-          y="10"
-          textAnchor="middle"
-          fontSize="9"
-          fill="var(--color-muted-foreground)"
-        >
-          Front
-        </text>
-
-        <ellipse cx="70" cy="30" rx="13" ry="15" fill="var(--color-muted)" stroke={stroke} />
-        <rect x="63" y="42" width="14" height="8" fill="var(--color-muted)" stroke={stroke} />
-
-        <path
-          d="M40,52 Q70,46 100,52 L106,110 Q103,140 96,160 L44,160 Q37,140 34,110 Z"
-          fill="var(--color-muted)"
-          stroke={stroke}
-        />
-
-        <ellipse cx="38" cy="58" rx="11" ry="9" fill={c("Shoulders")} stroke={stroke} />
-        <ellipse cx="102" cy="58" rx="11" ry="9" fill={c("Shoulders")} stroke={stroke} />
-
-        <path d="M44,60 Q57,55 68,60 L68,86 Q56,92 44,86 Z" fill={c("Chest")} stroke={stroke} />
-        <path d="M72,60 Q83,55 96,60 L96,86 Q84,92 72,86 Z" fill={c("Chest")} stroke={stroke} />
-
-        <rect x="60" y="92" width="20" height="40" rx="4" fill={c("Abs")} stroke={stroke} />
-
-        <path d="M46,92 L58,92 L56,134 L44,128 Z" fill={c("Obliques")} stroke={stroke} />
-        <path d="M82,92 L94,92 L96,128 L84,134 Z" fill={c("Obliques")} stroke={stroke} />
-
-        <ellipse cx="28" cy="82" rx="9" ry="18" fill={c("Biceps")} stroke={stroke} />
-        <ellipse cx="112" cy="82" rx="9" ry="18" fill={c("Biceps")} stroke={stroke} />
-
-        <ellipse cx="22" cy="116" rx="8" ry="16" fill={c("Forearms")} stroke={stroke} />
-        <ellipse cx="118" cy="116" rx="8" ry="16" fill={c("Forearms")} stroke={stroke} />
-
-        <path d="M46,162 Q56,170 58,210 L46,235 Q40,200 42,170 Z" fill={c("Quads")} stroke={stroke} />
-        <path d="M82,162 Q92,170 98,170 Q100,200 94,235 L82,210 Z" fill={c("Quads")} stroke={stroke} />
-
-        <ellipse cx="50" cy="245" rx="7" ry="10" fill={c("Calves")} stroke={stroke} />
-        <ellipse cx="90" cy="245" rx="7" ry="10" fill={c("Calves")} stroke={stroke} />
-      </g>
-
-      {/* ================= BACK ================= */}
-      <g transform="translate(200,10)">
-        <text
-          x="70"
-          y="10"
-          textAnchor="middle"
-          fontSize="9"
-          fill="var(--color-muted-foreground)"
-        >
-          Back
-        </text>
-
-        <ellipse cx="70" cy="30" rx="13" ry="15" fill="var(--color-muted)" stroke={stroke} />
-        <rect x="63" y="42" width="14" height="8" fill="var(--color-muted)" stroke={stroke} />
-
-        <path
-          d="M40,52 Q70,46 100,52 L106,110 Q103,140 96,160 L44,160 Q37,140 34,110 Z"
-          fill="var(--color-muted)"
-          stroke={stroke}
-        />
-
-        <ellipse cx="38" cy="58" rx="11" ry="9" fill={c("Shoulders")} stroke={stroke} />
-        <ellipse cx="102" cy="58" rx="11" ry="9" fill={c("Shoulders")} stroke={stroke} />
-
-        <path d="M55,52 Q70,48 85,52 L82,76 Q70,72 58,76 Z" fill={c("UpperBack")} stroke={stroke} />
-
-        <path d="M44,72 Q56,76 60,100 L52,118 Q42,108 40,86 Z" fill={c("Lats")} stroke={stroke} />
-        <path d="M96,72 Q84,76 80,100 L88,118 Q98,108 100,86 Z" fill={c("Lats")} stroke={stroke} />
-
-        <rect x="58" y="116" width="24" height="32" rx="4" fill={c("LowerBack")} stroke={stroke} />
-
-        <ellipse cx="28" cy="82" rx="9" ry="18" fill={c("Triceps")} stroke={stroke} />
-        <ellipse cx="112" cy="82" rx="9" ry="18" fill={c("Triceps")} stroke={stroke} />
-
-        <ellipse cx="22" cy="116" rx="8" ry="16" fill={c("Forearms")} stroke={stroke} />
-        <ellipse cx="118" cy="116" rx="8" ry="16" fill={c("Forearms")} stroke={stroke} />
-
-        <path d="M44,160 Q58,156 68,160 L68,184 Q56,190 44,184 Z" fill={c("Glutes")} stroke={stroke} />
-        <path d="M72,160 Q82,156 96,160 L96,184 Q84,190 72,184 Z" fill={c("Glutes")} stroke={stroke} />
-
-        <path d="M46,188 Q58,192 58,220 L46,235 Q40,210 42,190 Z" fill={c("Hamstrings")} stroke={stroke} />
-        <path d="M82,188 Q94,192 98,190 Q100,210 94,235 L82,220 Z" fill={c("Hamstrings")} stroke={stroke} />
-
-        <ellipse cx="50" cy="245" rx="7" ry="10" fill={c("Calves")} stroke={stroke} />
-        <ellipse cx="90" cy="245" rx="7" ry="10" fill={c("Calves")} stroke={stroke} />
-      </g>
-    </svg>
+      <Panel base={frontBase} intensity={intensity} activeMuscle={activeMuscle} />
+      <Panel base={backBase} intensity={intensity} activeMuscle={activeMuscle} />
+    </div>
   );
 }
