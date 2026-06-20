@@ -1,98 +1,180 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { getDb, type Routine } from "@/lib/db";
 import { EXERCISES, getExercise } from "@/lib/exercises";
-import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, ArrowUp, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_app/routines")({
-  head: () => ({
-    meta: [
-      { title: "Routines · Hevy Clone" },
-      { name: "description", content: "Build and manage your workout routines." },
-    ],
-  }),
   component: RoutinesPage,
 });
 
 function RoutinesPage() {
   const routines = useLiveQuery(
-    () => (typeof window === "undefined" ? [] : getDb().routines.orderBy("createdAt").reverse().toArray()),
+    () =>
+      typeof window === "undefined"
+        ? []
+        : getDb().routines.orderBy("createdAt").reverse().toArray(),
     [],
     [],
-  );
+  ) as Routine[] | undefined;
+
   const [editing, setEditing] = useState<Routine | "new" | null>(null);
+
+  const orderedRoutines = useMemo(() => {
+    const list = routines ?? [];
+
+    // pinned first, then most recent
+    return [...list].sort((a, b) => {
+      const ap = (a as any).pinned ? 1 : 0;
+      const bp = (b as any).pinned ? 1 : 0;
+      if (ap !== bp) return bp - ap;
+      return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+    });
+  }, [routines]);
+
+  const nextRoutine = orderedRoutines[0];
 
   return (
     <div className="flex flex-col gap-4 px-4 pt-6">
-      <header className="flex items-center justify-between">
+
+      {/* HEADER */}
+      <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Routines</h1>
-          <p className="text-sm text-muted-foreground">Plan your training</p>
+          <p className="text-sm text-muted-foreground">
+            Build your weekly training plan
+          </p>
+
+          <p className="mt-1 text-xs text-muted-foreground">
+            Organise your week • Push / Pull / Legs / Rest
+          </p>
         </div>
+
         <button
           onClick={() => setEditing("new")}
-          className="flex h-10 w-10 items-center justify-center rounded-full"
-          style={{ background: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
-          aria-label="New routine"
+          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
+          style={{
+            background: "var(--color-primary)",
+            color: "var(--color-primary-foreground)",
+          }}
         >
-          <Plus className="h-5 w-5" strokeWidth={3} />
+          <Plus className="h-4 w-4" />
+          New
         </button>
       </header>
 
-      {(routines ?? []).length === 0 ? (
-        <div className="rounded-2xl bg-card p-6 text-center text-sm text-muted-foreground">
-          No routines yet. Tap + to create one.
+      {/* NEXT UP */}
+      {nextRoutine && (
+        <div className="rounded-2xl border border-border/50 bg-card p-4">
+          <p className="text-xs text-muted-foreground">Next up</p>
+          <p className="text-base font-semibold">{nextRoutine.name}</p>
+
+          <Link
+            to="/workout"
+            search={{ routineId: nextRoutine.id }}
+            className="mt-2 inline-block text-sm font-semibold text-primary"
+          >
+            Start this workout →
+          </Link>
         </div>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {(routines ?? []).map((r) => (
-            <li key={r.id} className="rounded-2xl bg-card p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">{r.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.exercises.length} exercise{r.exercises.length === 1 ? "" : "s"}
-                  </p>
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setEditing(r)}
-                    className="rounded-md p-2 text-muted-foreground hover:bg-secondary"
-                    aria-label="Edit"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => r.id && getDb().routines.delete(r.id)}
-                    className="rounded-md p-2 text-destructive hover:bg-secondary"
-                    aria-label="Delete"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {r.exercises.map((e, i) => (
-                  <span key={i} className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                    {getExercise(e.exerciseId)?.name ?? e.exerciseId}
-                  </span>
-                ))}
-              </div>
-              <Link
-                to="/workout"
-                search={{ routineId: r.id }}
-                className="mt-3 block rounded-lg py-2 text-center text-sm font-semibold"
-                style={{ background: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
-              >
-                Start routine
-              </Link>
-            </li>
-          ))}
-        </ul>
       )}
 
+      {/* EMPTY STATE */}
+      {(routines ?? []).length === 0 && (
+        <div className="rounded-2xl bg-card p-6 text-center text-sm text-muted-foreground">
+          <p className="mb-3">No routines yet</p>
+          <Button onClick={() => setEditing("new")} className="w-full">
+            <Plus className="mr-2 h-4 w-4" />
+            Create your first routine
+          </Button>
+        </div>
+      )}
+
+      {/* LIST */}
+      <ul className="flex flex-col gap-3">
+        {orderedRoutines.map((r) => (
+          <li
+            key={r.id}
+            className="rounded-2xl bg-card p-4"
+          >
+            <div className="flex items-start justify-between gap-2">
+
+              {/* NAME */}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  {(r as any).pinned && (
+                    <Pin className="h-3 w-3 text-primary" />
+                  )}
+                  <p className="truncate font-semibold">{r.name}</p>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  {r.exercises.length} exercise{r.exercises.length === 1 ? "" : "s"}
+                </p>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() =>
+                    getDb().routines.update(r.id!, {
+                      ...(r as any),
+                      pinned: !(r as any).pinned,
+                    })
+                  }
+                  className="rounded-md p-2 text-muted-foreground hover:bg-secondary"
+                  title="Pin"
+                >
+                  <Pin className="h-4 w-4" />
+                </button>
+
+                <button
+                  onClick={() => setEditing(r)}
+                  className="rounded-md p-2 text-muted-foreground hover:bg-secondary"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+
+                <button
+                  onClick={() => r.id && getDb().routines.delete(r.id)}
+                  className="rounded-md p-2 text-destructive hover:bg-secondary"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* EXERCISES */}
+            <div className="mt-2 flex flex-wrap gap-1">
+              {r.exercises.map((e, i) => (
+                <span
+                  key={i}
+                  className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground"
+                >
+                  {getExercise(e.exerciseId)?.name ?? e.exerciseId}
+                </span>
+              ))}
+            </div>
+
+            {/* PRIMARY ACTION */}
+            <Link
+              to="/workout"
+              search={{ routineId: r.id }}
+              className="mt-3 block rounded-lg py-2 text-center text-sm font-semibold"
+              style={{
+                background: "var(--color-primary)",
+                color: "var(--color-primary-foreground)",
+              }}
+            >
+              Start workout
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      {/* EDITOR */}
       {editing && (
         <RoutineEditor
           initial={editing === "new" ? null : editing}
@@ -103,7 +185,13 @@ function RoutinesPage() {
   );
 }
 
-function RoutineEditor({ initial, onClose }: { initial: Routine | null; onClose: () => void }) {
+function RoutineEditor({
+  initial,
+  onClose,
+}: {
+  initial: Routine | null;
+  onClose: () => void;
+}) {
   const [name, setName] = useState(initial?.name ?? "");
   const [exercises, setExercises] = useState(initial?.exercises ?? []);
   const [picking, setPicking] = useState(false);
@@ -111,70 +199,94 @@ function RoutineEditor({ initial, onClose }: { initial: Routine | null; onClose:
   async function save() {
     const trimmed = name.trim();
     if (!trimmed || exercises.length === 0) return;
+
     const db = getDb();
+
     if (initial?.id) {
-      await db.routines.update(initial.id, { name: trimmed, exercises });
+      await db.routines.update(initial.id, {
+        name: trimmed,
+        exercises,
+      });
     } else {
-      await db.routines.add({ name: trimmed, exercises, createdAt: Date.now() });
+      await db.routines.add({
+        name: trimmed,
+        exercises,
+        createdAt: Date.now(),
+      });
     }
+
     onClose();
   }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <button onClick={onClose} aria-label="Close" className="p-2">
+        <button onClick={onClose} className="p-2">
           <X className="h-5 w-5" />
         </button>
-        <h2 className="text-base font-semibold">{initial ? "Edit routine" : "New routine"}</h2>
+
+        <h2 className="text-base font-semibold">
+          {initial ? "Edit routine" : "New routine"}
+        </h2>
+
         <button
           onClick={save}
           disabled={!name.trim() || exercises.length === 0}
           className="rounded-full px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
-          style={{ background: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
+          style={{
+            background: "var(--color-primary)",
+            color: "var(--color-primary-foreground)",
+          }}
         >
           Save
         </button>
       </header>
+
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Routine title"
+          placeholder="Routine name"
           className="w-full rounded-xl bg-card px-4 py-3 text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
         />
-        <ul className="mt-4 flex flex-col gap-2">
+
+        <div className="mt-4 text-xs text-muted-foreground">
+          Add exercises to build your session
+        </div>
+
+        <ul className="mt-3 flex flex-col gap-2">
           {exercises.map((e, i) => {
             const def = getExercise(e.exerciseId);
             return (
-              <li key={i} className="flex items-center justify-between rounded-xl bg-card px-4 py-3">
+              <li
+                key={i}
+                className="flex items-center justify-between rounded-xl bg-card px-4 py-3"
+              >
                 <div>
                   <p className="font-medium">{def?.name ?? e.exerciseId}</p>
                   <p className="text-xs text-muted-foreground">{def?.muscle}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-sm">
-                    <button onClick={() => setExercises((xs) => xs.map((x, j) => j === i ? { ...x, sets: Math.max(1, x.sets - 1) } : x))}>−</button>
-                    <span className="w-6 text-center font-semibold">{e.sets}</span>
-                    <button onClick={() => setExercises((xs) => xs.map((x, j) => j === i ? { ...x, sets: x.sets + 1 } : x))}>+</button>
-                  </div>
-                  <button onClick={() => setExercises((xs) => xs.filter((_, j) => j !== i))} className="text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+
+                <button
+                  onClick={() =>
+                    setExercises((xs) => xs.filter((_, j) => j !== i))
+                  }
+                  className="text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </li>
             );
           })}
         </ul>
-        <Button
-          variant="outline"
-          className="mt-4 w-full"
-          onClick={() => setPicking(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" /> Add exercise
+
+        <Button className="mt-4 w-full" onClick={() => setPicking(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add exercise
         </Button>
       </div>
+
       {picking && (
         <ExercisePicker
           onClose={() => setPicking(false)}
@@ -188,13 +300,26 @@ function RoutineEditor({ initial, onClose }: { initial: Routine | null; onClose:
   );
 }
 
-export function ExercisePicker({ onClose, onPick }: { onClose: () => void; onPick: (id: string) => void }) {
+export function ExercisePicker({
+  onClose,
+  onPick,
+}: {
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
   const [q, setQ] = useState("");
-  const filtered = EXERCISES.filter((e) => e.name.toLowerCase().includes(q.toLowerCase()));
+
+  const filtered = EXERCISES.filter((e) =>
+    e.name.toLowerCase().includes(q.toLowerCase()),
+  );
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-background">
       <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <button onClick={onClose} className="p-2"><X className="h-5 w-5" /></button>
+        <button onClick={onClose} className="p-2">
+          <X className="h-5 w-5" />
+        </button>
+
         <input
           autoFocus
           value={q}
@@ -203,6 +328,7 @@ export function ExercisePicker({ onClose, onPick }: { onClose: () => void; onPic
           className="flex-1 rounded-lg bg-card px-3 py-2 outline-none"
         />
       </header>
+
       <ul className="flex-1 overflow-y-auto">
         {filtered.map((e) => (
           <li key={e.id}>
