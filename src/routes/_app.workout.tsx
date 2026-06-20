@@ -375,8 +375,7 @@ function removeSet(ei: number, si: number) {
     }, 3000);
 
     setUndo({
-      ei,
-      si,
+      exerciseId: s.exercises[ei].exerciseId,
       set: setToDelete,
       timeoutId,
     });
