@@ -5,6 +5,7 @@ import { getDb, type Workout, type WorkoutExerciseLog } from "@/lib/db";
 import { getExercise, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
 import { Button } from "@/components/ui/button";
+import { WorkoutSummary } from "@/components/WorkoutSummary";
 
 export const Route = createFileRoute("/_app/history/$id")({
   component: HistoryDetailPage,
@@ -168,11 +169,11 @@ function HistoryDetailPage() {
         {editing ? <button onClick={save}><Save className="h-4 w-4" /></button> : <button onClick={startEdit}><Pencil className="h-4 w-4" /></button>}
       </header>
 
-      <section className="grid grid-cols-3 gap-2 bg-card p-3 rounded-xl text-center">
-        <div><p className="text-xs text-muted-foreground">Duration</p><p className="font-bold">{fmt(view.durationSec)}</p></div>
-        <div><p className="text-xs text-muted-foreground">Sets</p><p className="font-bold">{totalSets}</p></div>
-        <div><p className="text-xs text-muted-foreground">Volume</p><p className="font-bold">{Math.round(totalVolume)} kg</p></div>
-      </section>
+      <WorkoutSummary
+        durationSec={view.durationSec}
+        exercises={view.exercises}
+      />
+
 
       {view.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);
