@@ -123,7 +123,7 @@ function Panel({
         }}
       />
       {entries.map(([muscle, id]) => {
-        const raw = intensity[muscle];
+        const raw = intensity[muscle as MuscleGroup];
         const hasIntensity = typeof raw === "number" && raw > 0;
         const v = Math.max(0, Math.min(1, raw ?? 0));
         const dim =
