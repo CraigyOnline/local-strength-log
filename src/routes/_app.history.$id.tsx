@@ -148,7 +148,7 @@ function HistoryDetailPage() {
   }
 
   function addSet(ei: number) {
-    setDraft((d) => d ? { ...d, exercises: d.exercises.map((e, i) => i !== ei ? e : { ...e, sets: [...e.sets, { weight: e.sets.at(-1)?.weight ?? 0, reps: e.sets.at(-1)?.reps ?? 0, duration: e.sets.at(-1)?.duration ?? 0, completed: true }] }) } : d);
+    setDraft((d) => d ? { ...d, exercises: d.exercises.map((e, i) => i !== ei ? e : { ...e, sets: [...e.sets, { id: newSetId(), weight: e.sets.at(-1)?.weight ?? 0, reps: e.sets.at(-1)?.reps ?? 0, duration: e.sets.at(-1)?.duration ?? 0, completed: true }] }) } : d);
   }
 
   function removeExercise(ei: number) {
@@ -156,7 +156,7 @@ function HistoryDetailPage() {
   }
 
   function addExercise(id: string) {
-    setDraft((d) => d ? { ...d, exercises: [...d.exercises, { exerciseId: id, sets: [{ weight: 0, reps: 0, duration: 0, completed: true }] }] } : d);
+    setDraft((d) => d ? { ...d, exercises: [...d.exercises, { exerciseId: id, sets: [{ id: newSetId(), weight: 0, reps: 0, duration: 0, completed: true }] }] } : d);
     setPicking(false);
   }
 
