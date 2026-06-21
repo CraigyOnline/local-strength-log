@@ -37,6 +37,12 @@ export interface ExerciseDef {
   cardio?: boolean;
   /** time-based (planks, holds) — uses duration instead of reps */
   time?: boolean;
+  /** interval/HIIT config — drives an auto interval timer on workout screen */
+  interval?: {
+    rounds: number;
+    workSeconds: number;
+    restSeconds: number;
+  };
 }
 
 const E = (
@@ -45,7 +51,11 @@ const E = (
   muscle: MuscleGroup,
   equipment: Equipment,
   secondary: MuscleGroup[] = [],
-  opts: { cardio?: boolean; time?: boolean } = {},
+  opts: {
+    cardio?: boolean;
+    time?: boolean;
+    interval?: { rounds: number; workSeconds: number; restSeconds: number };
+  } = {},
 ): ExerciseDef => ({
   id,
   name,
@@ -54,6 +64,7 @@ const E = (
   secondary,
   cardio: opts.cardio,
   time: opts.time,
+  interval: opts.interval,
 });
 
 export const EXERCISES: ExerciseDef[] = [
@@ -138,6 +149,11 @@ export const EXERCISES: ExerciseDef[] = [
   E("elliptical", "Elliptical", "Cardio", "Cardio", [], { cardio: true, time: true }),
   E("stair-climber", "Stair Climber", "Cardio", "Cardio", ["Glutes"], { cardio: true, time: true }),
   E("jump-rope", "Jump Rope", "Cardio", "Cardio", ["Calves"], { cardio: true, time: true }),
+  E("rowing-intervals", "Rowing Intervals", "Cardio", "Cardio", ["UpperBack", "Lats"], {
+    cardio: true,
+    time: true,
+    interval: { rounds: 8, workSeconds: 60, restSeconds: 120 },
+  }),
 ];
 
 export const MUSCLE_GROUPS: MuscleGroup[] = [
