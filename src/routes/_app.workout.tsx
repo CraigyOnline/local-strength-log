@@ -225,6 +225,41 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
 
   const elapsed = Math.max(0, Math.round((now - session.startedAt) / 1000));
 
+  // Previous workout lookup: most recent saved workout per exerciseId (excludes active)
+  const allWorkouts = useLiveQuery(
+    () =>
+      typeof window === "undefined"
+        ? Promise.resolve<Workout[]>([])
+        : getDb().workouts.orderBy("startedAt").reverse().toArray(),
+    [],
+  ) as Workout[] | undefined;
+
+  const previousByExercise = (() => {
+    const map = new Map<string, WorkoutSet[]>();
+    if (!allWorkouts) return map;
+    for (const w of allWorkouts) {
+      if (w.startedAt === session.startedAt) continue;
+      for (const e of w.exercises) {
+        if (map.has(e.exerciseId)) continue;
+        const done = e.sets.filter((s) => s.completed);
+        if (done.length > 0) map.set(e.exerciseId, done);
+      }
+    }
+    return map;
+  })();
+
+  function formatPrevSet(s: WorkoutSet, timeBased: boolean): string {
+    if (timeBased) {
+      const d = Number(s.duration) || 0;
+      const m = Math.floor(d / 60);
+      const sec = d % 60;
+      return m > 0 ? `${m}:${String(sec).padStart(2, "0")}` : `${sec}s`;
+    }
+    const w = Number(s.weight) || 0;
+    const r = Number(s.reps) || 0;
+    return `${w}kg × ${r}`;
+  }
+
   // =========================
   // 🔥 UNDO STATE — single action, 3s window, identity-based
   // =========================
