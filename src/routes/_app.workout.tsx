@@ -225,6 +225,41 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
 
   const elapsed = Math.max(0, Math.round((now - session.startedAt) / 1000));
 
+  // Previous workout lookup: most recent saved workout per exerciseId (excludes active)
+  const allWorkouts = useLiveQuery(
+    () =>
+      typeof window === "undefined"
+        ? Promise.resolve<Workout[]>([])
+        : getDb().workouts.orderBy("startedAt").reverse().toArray(),
+    [],
+  ) as Workout[] | undefined;
+
+  const previousByExercise = (() => {
+    const map = new Map<string, WorkoutSet[]>();
+    if (!allWorkouts) return map;
+    for (const w of allWorkouts) {
+      if (w.startedAt === session.startedAt) continue;
+      for (const e of w.exercises) {
+        if (map.has(e.exerciseId)) continue;
+        const done = e.sets.filter((s) => s.completed);
+        if (done.length > 0) map.set(e.exerciseId, done);
+      }
+    }
+    return map;
+  })();
+
+  function formatPrevSet(s: WorkoutSet, timeBased: boolean): string {
+    if (timeBased) {
+      const d = Number(s.duration) || 0;
+      const m = Math.floor(d / 60);
+      const sec = d % 60;
+      return m > 0 ? `${m}:${String(sec).padStart(2, "0")}` : `${sec}s`;
+    }
+    const w = Number(s.weight) || 0;
+    const r = Number(s.reps) || 0;
+    return `${w}kg × ${r}`;
+  }
+
   // =========================
   // 🔥 UNDO STATE — single action, 3s window, identity-based
   // =========================
@@ -459,6 +494,23 @@ function removeSet(ei: number, si: number) {
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {(() => {
+              const prev = previousByExercise.get(ex.exerciseId);
+              if (!prev || prev.length === 0) return null;
+              return (
+                <div className="mt-2 rounded-md bg-secondary/50 px-2 py-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Previous Workout
+                  </p>
+                  <ul className="mt-0.5 text-xs tabular-nums text-foreground/80">
+                    {prev.map((s, i) => (
+                      <li key={i}>{formatPrevSet(s, timeBased)}</li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
 
             <div className="mt-3 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
               <span>#</span>
