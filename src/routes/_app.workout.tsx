@@ -495,6 +495,23 @@ function removeSet(ei: number, si: number) {
               </button>
             </div>
 
+            {(() => {
+              const prev = previousByExercise.get(ex.exerciseId);
+              if (!prev || prev.length === 0) return null;
+              return (
+                <div className="mt-2 rounded-md bg-secondary/50 px-2 py-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Previous Workout
+                  </p>
+                  <ul className="mt-0.5 text-xs tabular-nums text-foreground/80">
+                    {prev.map((s, i) => (
+                      <li key={i}>{formatPrevSet(s, timeBased)}</li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
+
             <div className="mt-3 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
               <span>#</span>
               <span>{timeBased ? "Sec" : "Kg"}</span>
