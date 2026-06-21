@@ -1,18 +1,19 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { User, ListChecks, Play, History } from "lucide-react";
+import { User, ListChecks, Play, History, Settings } from "lucide-react";
 
 const tabs = [
   { to: "/profile", label: "Profile", Icon: User },
   { to: "/routines", label: "Routines", Icon: ListChecks },
   { to: "/workout", label: "Workout", Icon: Play },
   { to: "/history", label: "History", Icon: History },
+  { to: "/settings", label: "Settings", Icon: Settings },
 ] as const;
 
 export function BottomTabs() {
   const { pathname } = useLocation();
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <ul className="mx-auto grid max-w-md grid-cols-4 pb-[env(safe-area-inset-bottom)]">
+      <ul className="mx-auto grid max-w-md grid-cols-5 pb-[env(safe-area-inset-bottom)]">
         {tabs.map(({ to, label, Icon }) => {
           const active = pathname.startsWith(to);
           return (
