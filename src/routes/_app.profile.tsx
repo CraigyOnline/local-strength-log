@@ -79,6 +79,50 @@ function ProfilePage() {
     };
   }, [lastWorkout]);
 
+  /* ===================== */
+  /* TRAINING BALANCE SNAPSHOT (FIXED) */
+  /* ===================== */
+
+  const balance = useMemo(() => {
+    const entries = MUSCLE_GROUPS
+      .filter((m) => m !== "Cardio")
+      .map((m) => ({
+        muscle: m,
+        value: intensity[m] ?? 0,
+      }));
+
+    const anyTrainingData = entries.some((e) => e.value > 0);
+
+    if (!anyTrainingData) {
+      return {
+        hasData: false,
+        most: null,
+        leastTrained: null,
+        untrained: [],
+      };
+    }
+
+    const trained = entries.filter((e) => e.value > 0);
+    const sorted = [...entries].sort((a, b) => b.value - a.value);
+
+    const most = sorted[0];
+
+    const leastTrained = trained.reduce((min, cur) =>
+      cur.value < min.value ? cur : min
+    );
+
+    const untrained = entries
+      .filter((e) => e.value === 0)
+      .map((e) => e.muscle);
+
+    return {
+      hasData: true,
+      most,
+      leastTrained,
+      untrained,
+    };
+  }, [intensity]);
+
   return (
     <div className="flex flex-col gap-6 px-4 pt-6">
 
@@ -99,7 +143,7 @@ function ProfilePage() {
         </div>
       </header>
 
-      {/* LAST WORKOUT (NEW CORE MODULE) */}
+      {/* LAST WORKOUT */}
       {lastSummary && (
         <div
           onClick={() =>
@@ -165,6 +209,53 @@ function ProfilePage() {
           />
         </div>
 
+        {/* ===================== */}
+        {/* TRAINING BALANCE SNAPSHOT (FIXED EMPTY STATE) */}
+        {/* ===================== */}
+
+        <div className="mb-5 rounded-xl border border-border/50 bg-secondary/10 p-4">
+          <h3 className="mb-2 text-sm font-semibold">
+            Training Balance Snapshot
+          </h3>
+
+          {!balance.hasData ? (
+            <p className="text-xs text-muted-foreground">
+              No training data yet. Start a workout to see muscle insights.
+            </p>
+          ) : (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              {balance.most && (
+                <p>
+                  Most trained:{" "}
+                  <span className="font-medium text-foreground">
+                    {balance.most.muscle}
+                  </span>
+                </p>
+              )}
+
+              {balance.leastTrained && (
+                <p>
+                  Least trained:{" "}
+                  <span className="font-medium text-foreground">
+                    {balance.leastTrained.muscle}
+                  </span>
+                </p>
+              )}
+
+              {balance.untrained.length > 0 && (
+                <p>
+                  Untrained:{" "}
+                  <span className="font-medium text-foreground">
+                    {balance.untrained.slice(0, 3).join(", ")}
+                    {balance.untrained.length > 3 ? "…" : ""}
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* MUSCLE LIST */}
         <div className="space-y-3">
           {MUSCLE_GROUPS.filter(
             (m) => m !== "Cardio" && (intensity[m] ?? 0) > 0
