@@ -454,6 +454,21 @@ function removeSet(ei: number, si: number) {
     );
   }
 
+  function markExerciseComplete(ei: number) {
+    setSession((s) =>
+      s
+        ? {
+            ...s,
+            exercises: s.exercises.map((e, i) =>
+              i !== ei
+                ? e
+                : { ...e, sets: e.sets.map((x) => ({ ...x, completed: true })) },
+            ),
+          }
+        : s,
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4 px-4 pt-4 pb-8">
       <header className="flex items-center justify-between">
@@ -511,6 +526,13 @@ function removeSet(ei: number, si: number) {
                 </div>
               );
             })()}
+
+            {def?.interval && (
+              <IntervalTimer
+                config={def.interval}
+                onComplete={() => markExerciseComplete(ei)}
+              />
+            )}
 
             <div className="mt-3 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
               <span>#</span>
@@ -670,5 +692,101 @@ function NumField({
       }}
       className="w-full rounded bg-secondary px-2 py-1 text-sm outline-none"
     />
+  );
+}
+
+function IntervalTimer({
+  config,
+  onComplete,
+}: {
+  config: { rounds: number; workSeconds: number; restSeconds: number };
+  onComplete: () => void;
+}) {
+  const [round, setRound] = useState(1);
+  const [phase, setPhase] = useState<"work" | "rest">("work");
+  const [remaining, setRemaining] = useState(config.workSeconds);
+  const [running, setRunning] = useState(true);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!running || done) return;
+    const t = setInterval(() => {
+      setRemaining((r) => r - 1);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [running, done]);
+
+  useEffect(() => {
+    if (done || remaining > 0) return;
+    if (phase === "work") {
+      setPhase("rest");
+      setRemaining(config.restSeconds);
+    } else {
+      if (round >= config.rounds) {
+        setDone(true);
+        setRunning(false);
+        onComplete();
+      } else {
+        setRound((n) => n + 1);
+        setPhase("work");
+        setRemaining(config.workSeconds);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remaining]);
+
+  function reset() {
+    setRound(1);
+    setPhase("work");
+    setRemaining(config.workSeconds);
+    setRunning(true);
+    setDone(false);
+  }
+
+  const mm = Math.floor(Math.max(0, remaining) / 60);
+  const ss = Math.max(0, remaining) % 60;
+
+  return (
+    <div
+      className={`mt-2 rounded-md px-3 py-2 ${
+        done
+          ? "bg-primary/10"
+          : phase === "work"
+            ? "bg-red-500/15"
+            : "bg-blue-500/15"
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Interval Timer
+          </p>
+          <p className="text-sm font-semibold">
+            {done ? "Complete" : phase === "work" ? "WORK" : "REST"} · Round{" "}
+            {round}/{config.rounds}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="tabular-nums text-2xl font-bold">
+            {mm}:{String(ss).padStart(2, "0")}
+          </span>
+          {!done ? (
+            <button
+              onClick={() => setRunning((r) => !r)}
+              className="rounded bg-secondary px-2 py-1 text-xs"
+            >
+              {running ? "Pause" : "Start"}
+            </button>
+          ) : (
+            <button
+              onClick={reset}
+              className="rounded bg-secondary px-2 py-1 text-xs"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
