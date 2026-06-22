@@ -80,7 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#0f1419" },
       { title: "UntrainedEffort — Workout Tracker" },
       { name: "description", content: "Offline-first workout tracker. Build routines, log sets and follow your progress." },
-      { property: "og:title", content: "Hevy Clone — Workout Tracker" },
+      { property: "og:title", content: "Untrained Effort — Workout Tracker" },
       { property: "og:description", content: "Offline-first workout tracker with routines, live logging and stats." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
