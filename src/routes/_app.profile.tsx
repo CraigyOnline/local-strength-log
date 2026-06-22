@@ -20,7 +20,7 @@ const MOTIVATIONAL_MESSAGES = [
 export const Route = createFileRoute("/_app/profile")({
   head: () => ({
     meta: [
-      { title: "Profile · Hevy Clone" },
+      { title: "Profile · Untrained Effort" },
       {
         name: "description",
         content: "Your workout stats, streak and history.",
