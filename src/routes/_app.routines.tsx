@@ -1,10 +1,20 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { getDb, type Routine } from "@/lib/db";
 import { EXERCISES, getExercise } from "@/lib/exercises";
 import { Plus, Pencil, Trash2, X, Check, ArrowUp, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_app/routines")({
   component: RoutinesPage,
@@ -195,6 +205,45 @@ function RoutineEditor({
   const [name, setName] = useState(initial?.name ?? "");
   const [exercises, setExercises] = useState(initial?.exercises ?? []);
   const [picking, setPicking] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const hasChanges = useMemo(() => {
+    if (!initial) {
+      return name.trim() !== "" || exercises.length > 0;
+    }
+    if (name !== initial.name) return true;
+    if (exercises.length !== initial.exercises.length) return true;
+    return exercises.some((e, i) => {
+      const init = initial.exercises[i];
+      return !init || e.exerciseId !== init.exerciseId || e.sets !== init.sets;
+    });
+  }, [name, exercises, initial]);
+
+  const blocker = useBlocker({
+    shouldBlockFn: () => hasChanges,
+    withResolver: true,
+  });
+
+  const handleClose = useCallback(() => {
+    if (hasChanges) setConfirmOpen(true);
+    else onClose();
+  }, [hasChanges, onClose]);
+
+  const handleDiscard = useCallback(() => {
+    setConfirmOpen(false);
+    if (blocker.status === "blocked") {
+      blocker.proceed();
+    } else {
+      onClose();
+    }
+  }, [blocker, onClose]);
+
+  const handleCancel = useCallback(() => {
+    setConfirmOpen(false);
+    if (blocker.status === "blocked") {
+      blocker.reset();
+    }
+  }, [blocker]);
 
   async function save() {
     const trimmed = name.trim();
@@ -221,7 +270,7 @@ function RoutineEditor({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <button onClick={onClose} className="p-2">
+        <button onClick={handleClose} className="p-2">
           <X className="h-5 w-5" />
         </button>
 
@@ -296,6 +345,18 @@ function RoutineEditor({
           }}
         />
       )}
+
+      <AlertDialog open={confirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDiscard}>Discard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
