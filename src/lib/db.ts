@@ -72,7 +72,7 @@ export class HevyDB extends Dexie {
   prHistory!: Table<PRRecord, number>;
 
   constructor() {
-    super("hevy-clone-db");
+    super("untrained-effort-db");
 
     this.version(2).stores({
       routines: "++id, name, createdAt",
