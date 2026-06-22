@@ -205,6 +205,45 @@ function RoutineEditor({
   const [name, setName] = useState(initial?.name ?? "");
   const [exercises, setExercises] = useState(initial?.exercises ?? []);
   const [picking, setPicking] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const hasChanges = useMemo(() => {
+    if (!initial) {
+      return name.trim() !== "" || exercises.length > 0;
+    }
+    if (name !== initial.name) return true;
+    if (exercises.length !== initial.exercises.length) return true;
+    return exercises.some((e, i) => {
+      const init = initial.exercises[i];
+      return !init || e.exerciseId !== init.exerciseId || e.sets !== init.sets;
+    });
+  }, [name, exercises, initial]);
+
+  const blocker = useBlocker({
+    shouldBlockFn: () => hasChanges,
+    withResolver: true,
+  });
+
+  const handleClose = useCallback(() => {
+    if (hasChanges) setConfirmOpen(true);
+    else onClose();
+  }, [hasChanges, onClose]);
+
+  const handleDiscard = useCallback(() => {
+    setConfirmOpen(false);
+    if (blocker.status === "blocked") {
+      blocker.proceed();
+    } else {
+      onClose();
+    }
+  }, [blocker, onClose]);
+
+  const handleCancel = useCallback(() => {
+    setConfirmOpen(false);
+    if (blocker.status === "blocked") {
+      blocker.reset();
+    }
+  }, [blocker]);
 
   async function save() {
     const trimmed = name.trim();
