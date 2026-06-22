@@ -21,7 +21,7 @@ const SCHEMA_VERSION = 1;
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({
     meta: [
-      { title: "Settings · Hevy Clone" },
+      { title: "Settings · Untrained Effort" },
       { name: "description", content: "App settings, backup, restore and licenses." },
     ],
   }),
@@ -86,7 +86,7 @@ function SettingsPage() {
       const a = document.createElement("a");
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       a.href = url;
-      a.download = `hevy-clone-backup-${stamp}.json`;
+      a.download = `untrained-effort-backup-${stamp}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
