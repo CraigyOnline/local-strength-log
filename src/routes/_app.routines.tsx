@@ -270,7 +270,7 @@ function RoutineEditor({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <button onClick={onClose} className="p-2">
+        <button onClick={handleClose} className="p-2">
           <X className="h-5 w-5" />
         </button>
 
