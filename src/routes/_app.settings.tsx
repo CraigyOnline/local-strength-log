@@ -21,7 +21,7 @@ const SCHEMA_VERSION = 1;
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({
     meta: [
-      { title: "Settings · Hevy Clone" },
+      { title: "Settings · Untrained Effort" },
       { name: "description", content: "App settings, backup, restore and licenses." },
     ],
   }),

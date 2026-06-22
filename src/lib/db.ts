@@ -64,7 +64,7 @@ export interface PRRecord {
 /**
  * DATABASE
  */
-export class HevyDB extends Dexie {
+export class AppDB extends Dexie {
   routines!: Table<Routine, number>;
   workouts!: Table<Workout, number>;
 
@@ -84,13 +84,13 @@ export class HevyDB extends Dexie {
   }
 }
 
-let _db: HevyDB | null = null;
+let _db: AppDB | null = null;
 
-export function getDb(): HevyDB {
+export function getDb(): AppDB {
   if (typeof window === "undefined") {
     throw new Error("DB is only available in the browser");
   }
 
-  if (!_db) _db = new HevyDB();
+  if (!_db) _db = new AppDB();
   return _db;
 }
