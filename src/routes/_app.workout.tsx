@@ -534,88 +534,92 @@ function removeSet(ei: number, si: number) {
               />
             )}
 
-            <div className="mt-3 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
-              <span>#</span>
-              <span>{timeBased ? "Sec" : "Kg"}</span>
-              <span>{timeBased ? "Distance/Notes" : "Reps"}</span>
-              <span />
-              <span />
-            </div>
+            {!def?.interval && (
+              <>
+                <div className="mt-3 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
+                  <span>#</span>
+                  <span>{timeBased ? "Sec" : "Kg"}</span>
+                  <span>{timeBased ? "Distance/Notes" : "Reps"}</span>
+                  <span />
+                  <span />
+                </div>
 
-            {ex.sets.map((s, si) => (
-              <div
-                key={si}
-                className="mt-2 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2"
-              >
-                <span className="text-sm font-semibold">{si + 1}</span>
+                {ex.sets.map((s, si) => (
+                  <div
+                    key={si}
+                    className="mt-2 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2"
+                  >
+                    <span className="text-sm font-semibold">{si + 1}</span>
 
-                {timeBased ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <span className="min-w-[60px] tabular-nums text-sm">
-                        {formatTime(getLiveDuration(s))}
-                      </span>
+                    {timeBased ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-[60px] tabular-nums text-sm">
+                            {formatTime(getLiveDuration(s))}
+                          </span>
 
-                      <button
-                        onClick={() => toggleTimer(ei, si)}
-                        className="rounded bg-secondary px-2 py-1 text-xs"
-                      >
-                        {s.timerStart ? "■" : "▶"}
-                      </button>
-                    </div>
+                          <button
+                            onClick={() => toggleTimer(ei, si)}
+                            className="rounded bg-secondary px-2 py-1 text-xs"
+                          >
+                            {s.timerStart ? "■" : "▶"}
+                          </button>
+                        </div>
 
-                    <NumField
-                      value={s.weight ?? 0}
-                      onCommit={(v) => updateSet(ei, si, { weight: v })}
-                      decimal
-                      placeholder="0"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <NumField
-                      value={s.weight ?? 0}
-                      onCommit={(v) => updateSet(ei, si, { weight: v })}
-                      decimal
-                      placeholder="0"
-                    />
+                        <NumField
+                          value={s.weight ?? 0}
+                          onCommit={(v) => updateSet(ei, si, { weight: v })}
+                          decimal
+                          placeholder="0"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <NumField
+                          value={s.weight ?? 0}
+                          onCommit={(v) => updateSet(ei, si, { weight: v })}
+                          decimal
+                          placeholder="0"
+                        />
 
-                    <NumField
-                      value={s.reps ?? 0}
-                      onCommit={(v) => updateSet(ei, si, { reps: v })}
-                      placeholder="0"
-                    />
-                  </>
-                )}
+                        <NumField
+                          value={s.reps ?? 0}
+                          onCommit={(v) => updateSet(ei, si, { reps: v })}
+                          placeholder="0"
+                        />
+                      </>
+                    )}
+
+                    <button
+                      onClick={() =>
+                        updateSet(ei, si, { completed: !s.completed })
+                      }
+                      className={`flex h-7 w-7 items-center justify-center rounded ${
+                        s.completed
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      onClick={() => removeSet(ei, si)}
+                      className="text-muted-foreground"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
 
                 <button
-                  onClick={() =>
-                    updateSet(ei, si, { completed: !s.completed })
-                  }
-                  className={`flex h-7 w-7 items-center justify-center rounded ${
-                    s.completed
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground"
-                  }`}
+                  onClick={() => addSet(ei)}
+                  className="mt-3 w-full rounded-lg bg-secondary py-2 text-sm font-medium"
                 >
-                  <Check className="h-4 w-4" />
+                  + Add set
                 </button>
-
-                <button
-                  onClick={() => removeSet(ei, si)}
-                  className="text-muted-foreground"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-
-            <button
-              onClick={() => addSet(ei)}
-              className="mt-3 w-full rounded-lg bg-secondary py-2 text-sm font-medium"
-            >
-              + Add set
-            </button>
+              </>
+            )}
           </div>
         );
       })}
