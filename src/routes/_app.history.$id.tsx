@@ -179,6 +179,7 @@ function HistoryDetailPage() {
         const def = getExercise(ex.exerciseId);
         const timeBased = isTimeBased(def);
         const isBodyweight = def?.equipment === "Bodyweight";
+        const isCardio = def?.equipment === "Cardio";
         return (
           <div key={ei} className="rounded-xl bg-card p-4">
             <div className="flex justify-between">
@@ -204,7 +205,29 @@ function HistoryDetailPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 font-medium">{!isBodyweight && <span>{s.weight ?? 0}kg</span>} {timeBased ? <span>{s.duration ?? 0}s</span> : <span>{s.reps ?? 0} reps</span>}</div>
+                      <div className="flex items-center gap-1.5 font-medium">
+
+{isCardio ? (
+
+<span>{fmt(s.duration ?? 0)}</span>
+
+) : timeBased ? (
+
+<span>{s.duration ?? 0}s</span>
+
+) : (
+
+<>
+
+{!isBodyweight && <span>{s.weight ?? 0}kg</span>}
+
+<span>{s.reps ?? 0} reps</span>
+
+</>
+
+)}
+
+</div>
                     )}
                   </div>
                   <div className="self-end pb-1.5">{editing ? <button onClick={() => removeSet(ei, si)} className="text-muted-foreground hover:text-red-500"><Trash2 className="h-4 w-4" /></button> : s.completed && <Check className="h-5 w-5 text-primary" />}</div>
