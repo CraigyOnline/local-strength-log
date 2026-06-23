@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDb, type Routine } from "@/lib/db";
 import { EXERCISES, getExercise } from "@/lib/exercises";
-import { Plus, Pencil, Trash2, X, Check, ArrowUp, Pin } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, ArrowUp, ArrowDown, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -251,6 +251,28 @@ useEffect(() => {
     }
   }, [blocker]);
 
+function moveExerciseUp(index: number) {
+  if (index === 0) return;
+
+  setExercises((xs) => {
+    const next = [...xs];
+    [next[index - 1], next[index]] =
+      [next[index], next[index - 1]];
+    return next;
+  });
+}
+
+function moveExerciseDown(index: number) {
+  setExercises((xs) => {
+    if (index >= xs.length - 1) return xs;
+
+    const next = [...xs];
+    [next[index + 1], next[index]] =
+      [next[index], next[index + 1]];
+    return next;
+  });
+}
+
   async function save() {
     const trimmed = name.trim();
     if (!trimmed || exercises.length === 0) return;
@@ -314,10 +336,10 @@ useEffect(() => {
           {exercises.map((e, i) => {
             const def = getExercise(e.exerciseId);
             return (
-              <li
-                key={i}
-                className="flex items-center justify-between rounded-xl bg-card px-4 py-3"
-              >
+            <li
+              key={i}
+              className="flex items-center justify-between rounded-xl bg-card px-4 py-3 gap-3"
+            >
                 <div>
                   <p className="font-medium">{def?.name ?? e.exerciseId}</p>
                   <p className="text-xs text-muted-foreground">{def?.muscle}</p>
@@ -350,14 +372,36 @@ useEffect(() => {
 </div>
                 </div>
 
-                <button
-                  onClick={() =>
-                    setExercises((xs) => xs.filter((_, j) => j !== i))
-                  }
-                  className="text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex flex-col items-center gap-1">
+
+  <button
+    onClick={() => moveExerciseUp(i)}
+    disabled={i === 0}
+    className="rounded p-1 disabled:opacity-30"
+  >
+    <ArrowUp className="h-4 w-4" />
+  </button>
+
+  <button
+    onClick={() => moveExerciseDown(i)}
+    disabled={i === exercises.length - 1}
+    className="rounded p-1 disabled:opacity-30"
+  >
+    <ArrowDown className="h-4 w-4" />
+  </button>
+
+  <button
+    onClick={() =>
+      setExercises((xs) =>
+        xs.filter((_, j) => j !== i)
+      )
+    }
+    className="text-destructive"
+  >
+    <Trash2 className="h-4 w-4" />
+  </button>
+
+</div>
               </li>
             );
           })}
