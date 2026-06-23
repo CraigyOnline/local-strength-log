@@ -193,7 +193,7 @@ function HistoryDetailPage() {
                     <span className="font-semibold text-xs text-muted-foreground">Set {si + 1}</span>
                     {editing ? (
                       <div className="flex flex-wrap gap-4 items-center">
-                        {!isBodyweight && (
+                        {!isBodyweight && !isCardio && (
                           <div className="flex flex-col gap-1">
                              <span className="text-[10px] uppercase font-bold text-muted-foreground/60">Weight (kg)</span>
                              <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border"><button onClick={() => patchSet(ei, si, { weight: Math.max(0, (s.weight ?? 0) - 2.5) })} className="w-8 h-full">−</button><input className="w-12 bg-transparent text-center" value={s.weight ?? ""} onChange={(e) => patchSet(ei, si, { weight: Number(e.target.value.replace(/[^0-9.]/g, "")) })} /><button onClick={() => patchSet(ei, si, { weight: (s.weight ?? 0) + 2.5 })} className="w-8 h-full">+</button></div>
