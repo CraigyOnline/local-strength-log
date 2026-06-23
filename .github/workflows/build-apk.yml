@@ -20,19 +20,19 @@ jobs:
       - name: Install Project Dependencies
         run: npm install --legacy-peer-deps
 
-      # 1. Pull down the missing platform tools first
+      # 1. Install required platform tools
       - name: Install Capacitor Core Libraries
         run: npm install @capacitor/cli @capacitor/android --legacy-peer-deps
 
-      # 2. Add the native android directory structure 
-      - name: Add Android Platform
-        run: npx cap add android
-
-      # 3. NOW compile your frontend code (This creates the ./dist folder exactly where it is expected)
+      # 2. Compile frontend code first (This creates the ./dist folder Capacitor expects)
       - name: Compile App Code
         run: npm run build
 
-      # 4. Sync the newly generated dist files into the Android project
+      # 3. Add the native android directory structure (It will successfully find the ./dist folder)
+      - name: Add Android Platform
+        run: npx cap add android
+
+      # 4. Sync files into the Android project
       - name: Sync Compiled App into Android Studio Folder
         run: npx cap sync android
 
