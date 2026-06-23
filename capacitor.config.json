@@ -1,5 +1,5 @@
 {
   "appId": "com.untrainedeffort.app",
   "appName": "Untrained Effort",
-  "webDir": "dist"
+  "webDir": ".output/public"
 }
