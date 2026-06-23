@@ -24,15 +24,15 @@ jobs:
       - name: Install Capacitor Core Libraries
         run: npm install @capacitor/cli @capacitor/android --legacy-peer-deps
 
-      # 2. Compile frontend code first (This creates the ./dist folder Capacitor expects)
+      # 2. Compile your TanStack Start code (Generates the .output/public directory)
       - name: Compile App Code
         run: npm run build
 
-      # 3. Add the native android directory structure (It will successfully find the ./dist folder)
+      # 3. Add the native android directory structure
       - name: Add Android Platform
         run: npx cap add android
 
-      # 4. Sync files into the Android project
+      # 4. Sync assets directly into the Android project
       - name: Sync Compiled App into Android Studio Folder
         run: npx cap sync android
 
