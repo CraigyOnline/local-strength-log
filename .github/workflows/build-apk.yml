@@ -22,19 +22,16 @@ jobs:
           npm install --legacy-peer-deps
           npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps
 
-      - name: Compile TanStack Start Code
+      - name: Compile App Code
         run: npm run build
 
-      - name: Fix Missing Index HTML Requirement
-        run: |
-          mkdir -p .output/public
-          echo '<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/></head><body><div id="root"></div><script>window.location.href="index.html";</script></body></html>' > .output/public/index.html
-
+      # Capacitor will point directly to 'dist', which is where Lovable/Vite builds your app
       - name: Initialize Android Native Project
         run: |
-          npx cap init WorkoutApp com.lovable.workoutapp --web-dir=.output/public
+          npx cap init WorkoutApp com.lovable.workoutapp --web-dir=dist
           npx cap add android
 
+      # This copies your real 'dist' files into the Android project
       - name: Sync Compiled App into Android Studio Folder
         run: npx cap sync android
 
