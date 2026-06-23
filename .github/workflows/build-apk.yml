@@ -27,7 +27,7 @@ jobs:
 
       - name: Initialize Android Native Project
         run: |
-          npx cap init WorkoutApp com.lovable.workoutapp --web-dir=.output/public --skip-user-prompts
+          npx cap init WorkoutApp com.lovable.workoutapp --web-dir=.output/public
           npx cap add android
 
       - name: Sync Compiled App into Android Studio Folder
