@@ -23,6 +23,10 @@ jobs:
       - name: Compile App Code
         run: npm run build
 
+      # This ensures the Capacitor CLI executable is locally available for npx
+      - name: Install Capacitor CLI
+        run: npm install @capacitor/cli --legacy-peer-deps
+
       # This copies your real 'dist' files directly into the existing Android project
       - name: Sync Compiled App into Android Studio Folder
         run: npx cap sync android
