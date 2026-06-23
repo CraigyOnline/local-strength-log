@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDb, type Routine } from "@/lib/db";
 import { EXERCISES, getExercise } from "@/lib/exercises";
 import { Plus, Pencil, Trash2, X, Check, ArrowUp, Pin } from "lucide-react";
@@ -219,10 +219,16 @@ function RoutineEditor({
     });
   }, [name, exercises, initial]);
 
-  const blocker = useBlocker({
-    shouldBlockFn: () => hasChanges,
-    withResolver: true,
-  });
+const blocker = useBlocker({
+  shouldBlockFn: () => hasChanges,
+  withResolver: true,
+});
+
+useEffect(() => {
+  if (blocker.status === "blocked") {
+    setConfirmOpen(true);
+  }
+}, [blocker.status]);
 
   const handleClose = useCallback(() => {
     if (hasChanges) setConfirmOpen(true);
