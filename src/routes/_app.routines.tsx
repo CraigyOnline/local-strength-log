@@ -343,32 +343,86 @@ function moveExerciseDown(index: number) {
                 <div>
                   <p className="font-medium">{def?.name ?? e.exerciseId}</p>
                   <p className="text-xs text-muted-foreground">{def?.muscle}</p>
-				  <div className="mt-2 flex items-center gap-2">
-  <span className="text-xs text-muted-foreground">
-    Sets
-  </span>
+				 <div className="mt-2 space-y-2">
 
-  <input
-    type="number"
-    min="1"
-    value={e.sets}
-    onChange={(ev) =>
-      setExercises((xs) =>
-        xs.map((x, idx) =>
-          idx === i
-            ? {
-                ...x,
-                sets: Math.max(
-                  1,
-                  Number(ev.target.value) || 1
-                ),
-              }
-            : x
+  <div className="flex items-center gap-2">
+    <span className="text-xs text-muted-foreground w-16">
+      Sets
+    </span>
+
+    <input
+      type="number"
+      min="1"
+      value={e.sets}
+      onChange={(ev) =>
+        setExercises((xs) =>
+          xs.map((x, idx) =>
+            idx === i
+              ? {
+                  ...x,
+                  sets: Math.max(
+                    1,
+                    Number(ev.target.value) || 1
+                  ),
+                }
+              : x
+          )
         )
-      )
-    }
-    className="w-16 rounded bg-secondary px-2 py-1 text-sm"
-  />
+      }
+      className="w-16 rounded bg-secondary px-2 py-1 text-sm"
+    />
+  </div>
+
+  <div className="flex items-center gap-2">
+    <span className="text-xs text-muted-foreground w-16">
+      Weight
+    </span>
+
+    <input
+      type="number"
+      value={e.targetWeight ?? ""}
+      onChange={(ev) =>
+        setExercises((xs) =>
+          xs.map((x, idx) =>
+            idx === i
+              ? {
+                  ...x,
+                  targetWeight: Number(ev.target.value) || 0,
+                }
+              : x
+          )
+        )
+      }
+      className="w-16 rounded bg-secondary px-2 py-1 text-sm"
+      placeholder="kg"
+    />
+  </div>
+
+  <div className="flex items-center gap-2">
+    <span className="text-xs text-muted-foreground w-16">
+      Reps
+    </span>
+
+    <input
+      type="number"
+      value={e.targetReps ?? ""}
+      onChange={(ev) =>
+        setExercises((xs) =>
+          xs.map((x, idx) =>
+            idx === i
+              ? {
+                  ...x,
+                  targetReps: Number(ev.target.value) || 0,
+                }
+              : x
+          )
+        )
+      }
+      className="w-16 rounded bg-secondary px-2 py-1 text-sm"
+      placeholder="reps"
+    />
+  </div>
+
 </div>
                 </div>
 
