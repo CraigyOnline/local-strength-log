@@ -5,7 +5,12 @@ import Dexie, { type Table } from "dexie";
  */
 export interface RoutineExercise {
   exerciseId: string;
+
   sets: number;
+
+  targetWeight?: number;
+  targetReps?: number;
+  targetDuration?: number;
 }
 
 export interface Routine {
@@ -74,7 +79,7 @@ export class AppDB extends Dexie {
   constructor() {
     super("untrained-effort-db");
 
-    this.version(2).stores({
+    this.version(3).stores({
       routines: "++id, name, createdAt",
       workouts: "++id, startedAt, routineId",
 
