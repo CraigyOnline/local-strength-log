@@ -379,17 +379,22 @@ function moveExerciseDown(index: number) {
     </span>
 
     <input
-      type="number"
-      value={e.targetWeight ?? ""}
-      onChange={(ev) =>
-        setExercises((xs) =>
-          xs.map((x, idx) =>
-            idx === i
-              ? {
-                  ...x,
-                  targetWeight: Number(ev.target.value) || 0,
-                }
-              : x
+  type="number"
+  min="0"
+  step="0.5"
+  value={e.targetWeight ?? ""}
+  onChange={(ev) =>
+    setExercises((xs) =>
+      xs.map((x, idx) =>
+        idx === i
+          ? {
+              ...x,
+              targetWeight: Math.max(
+                0,
+                Number(ev.target.value) || 0
+              ),
+            }
+          : x
           )
         )
       }
@@ -404,17 +409,21 @@ function moveExerciseDown(index: number) {
     </span>
 
     <input
-      type="number"
-      value={e.targetReps ?? ""}
-      onChange={(ev) =>
-        setExercises((xs) =>
-          xs.map((x, idx) =>
-            idx === i
-              ? {
-                  ...x,
-                  targetReps: Number(ev.target.value) || 0,
-                }
-              : x
+  type="number"
+  min="0"
+  value={e.targetReps ?? ""}
+  onChange={(ev) =>
+    setExercises((xs) =>
+      xs.map((x, idx) =>
+        idx === i
+          ? {
+              ...x,
+              targetReps: Math.max(
+                0,
+                Number(ev.target.value) || 0
+              ),
+            }
+          : x
           )
         )
       }
