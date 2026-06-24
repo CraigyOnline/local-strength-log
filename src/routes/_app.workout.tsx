@@ -61,18 +61,26 @@ function WorkoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routineId, routines]);
 
-  function startWorkout(r: Routine | null) {
-    setActive({
-      routine: r,
-      name: r?.name ?? "Quick Workout",
-      startedAt: Date.now(),
-      exercises:
-        r?.exercises.map((e) => ({
-          exerciseId: e.exerciseId,
-          sets: Array.from({ length: Math.max(1, e.sets) }, () => makeSet()),
-        })) ?? [],
-    });
-  }
+function startWorkout(r: Routine | null) {
+  setActive({
+    routine: r,
+    name: r?.name ?? "Quick Workout",
+    startedAt: Date.now(),
+    exercises:
+      r?.exercises.map((e) => ({
+        exerciseId: e.exerciseId,
+        sets: Array.from(
+          { length: Math.max(1, e.sets) },
+          () => ({
+            ...makeSet(),
+            weight: e.targetWeight ?? 0,
+            reps: e.targetReps ?? 0,
+            duration: e.targetDuration ?? 0,
+          })
+        ),
+      })) ?? [],
+  });
+}
 
   if (summary) {
     return (
