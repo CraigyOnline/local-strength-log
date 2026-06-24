@@ -45,8 +45,23 @@ function HistoryList() {
 
       <ul className="flex flex-col gap-3">
         {workouts?.map((w) => {
-          const totalSets = w.exercises.reduce((a, e) => a + e.sets.filter((s) => s.completed).length, 0);
-          return (
+  const totalSets = w.exercises.reduce(
+    (a, e) => a + e.sets.filter((s) => s.completed).length,
+    0
+  );
+
+  const totalVolume = w.exercises.reduce(
+    (sum, ex) =>
+      sum +
+      ex.sets.reduce(
+        (s, set) =>
+          s + ((set.weight ?? 0) * (set.reps ?? 0)),
+        0
+      ),
+    0
+  );
+
+  return (
             <li
               key={w.id}
               className="cursor-pointer rounded-xl bg-card p-4"
@@ -56,9 +71,14 @@ function HistoryList() {
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{w.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(w.startedAt).toLocaleString()} ·{" "}
-                    {Math.max(1, Math.round((w.durationSec ?? 0) / 60))} min · {w.exercises.length} ex · {totalSets} sets
-                  </p>
+  {new Date(w.startedAt).toLocaleDateString()} ·{" "}
+  {Math.max(1, Math.round((w.durationSec ?? 0) / 60))} min ·{" "}
+  {w.exercises.length} ex · {totalSets} sets
+</p>
+
+<p className="mt-1 text-xs text-muted-foreground">
+  Volume: {totalVolume.toLocaleString()} kg
+</p>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {w.exercises.slice(0, 5).map((e, i) => (
                       <span key={i} className="rounded bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
