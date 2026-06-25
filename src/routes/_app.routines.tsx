@@ -296,7 +296,8 @@ function moveExerciseDown(index: number) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    <div className="fixed inset-0 z-50 flex justify-center bg-background">
+      <div className="w-full max-w-md">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <button onClick={handleClose} className="p-2">
           <X className="h-5 w-5" />
@@ -498,6 +499,7 @@ function moveExerciseDown(index: number) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  </div>
   );
 }
 
@@ -515,7 +517,8 @@ export function ExercisePicker({
   );
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-background">
+    <div className="fixed inset-0 z-[60] flex justify-center bg-background">
+      <div className="flex w-full max-w-md flex-col">
       <header className="flex items-center gap-2 border-b border-border px-4 py-3">
         <button onClick={onClose} className="p-2">
           <X className="h-5 w-5" />
@@ -547,5 +550,6 @@ export function ExercisePicker({
         ))}
       </ul>
     </div>
+	</div>
   );
 }
