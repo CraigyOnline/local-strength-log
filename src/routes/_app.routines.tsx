@@ -296,8 +296,11 @@ function moveExerciseDown(index: number) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center bg-background">
-      <div className="w-full max-w-md">
+    <div
+  className="fixed top-0 left-0 right-0 z-50 flex justify-center bg-background"
+  style={{ bottom: "72px" }}
+>
+      <div className="flex h-full w-full max-w-md flex-col">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <button onClick={handleClose} className="p-2">
           <X className="h-5 w-5" />
@@ -320,7 +323,7 @@ function moveExerciseDown(index: number) {
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
         <input
           autoFocus
           value={name}
@@ -341,13 +344,15 @@ function moveExerciseDown(index: number) {
               key={i}
               className="flex items-center justify-between rounded-xl bg-card px-4 py-3 gap-3"
             >
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="font-medium">{def?.name ?? e.exerciseId}</p>
                   <p className="text-xs text-muted-foreground">{def?.muscle}</p>
-				 <div className="mt-2 space-y-2">
+				 
+				 
+				 <div className="mt-3 flex flex-wrap gap-3">
 
-  <div className="flex items-center gap-2">
-    <span className="text-xs text-muted-foreground w-16">
+  <div className="flex items-center gap-1">
+    <span className="text-xs text-muted-foreground">
       Sets
     </span>
 
@@ -370,66 +375,66 @@ function moveExerciseDown(index: number) {
           )
         )
       }
-      className="w-16 rounded bg-secondary px-2 py-1 text-sm"
+      className="w-14 rounded bg-secondary px-2 py-1 text-sm"
     />
   </div>
 
-  <div className="flex items-center gap-2">
-    <span className="text-xs text-muted-foreground w-16">
-      Weight
+  <div className="flex items-center gap-1">
+    <span className="text-xs text-muted-foreground">
+      Kg
     </span>
 
     <input
-  type="number"
-  min="0"
-  step="0.5"
-  value={e.targetWeight ?? ""}
-  onChange={(ev) =>
-    setExercises((xs) =>
-      xs.map((x, idx) =>
-        idx === i
-          ? {
-              ...x,
-              targetWeight: Math.max(
-                0,
-                Number(ev.target.value) || 0
-              ),
-            }
-          : x
+      type="number"
+      min="0"
+      step="0.5"
+      value={e.targetWeight ?? ""}
+      onChange={(ev) =>
+        setExercises((xs) =>
+          xs.map((x, idx) =>
+            idx === i
+              ? {
+                  ...x,
+                  targetWeight: Math.max(
+                    0,
+                    Number(ev.target.value) || 0
+                  ),
+                }
+              : x
           )
         )
       }
       className="w-16 rounded bg-secondary px-2 py-1 text-sm"
-      placeholder="kg"
+      placeholder="0"
     />
   </div>
 
-  <div className="flex items-center gap-2">
-    <span className="text-xs text-muted-foreground w-16">
+  <div className="flex items-center gap-1">
+    <span className="text-xs text-muted-foreground">
       Reps
     </span>
 
     <input
-  type="number"
-  min="0"
-  value={e.targetReps ?? ""}
-  onChange={(ev) =>
-    setExercises((xs) =>
-      xs.map((x, idx) =>
-        idx === i
-          ? {
-              ...x,
-              targetReps: Math.max(
-                0,
-                Number(ev.target.value) || 0
-              ),
-            }
-          : x
+      type="number"
+      min="0"
+      value={e.targetReps ?? ""}
+      onChange={(ev) =>
+        setExercises((xs) =>
+          xs.map((x, idx) =>
+            idx === i
+              ? {
+                  ...x,
+                  targetReps: Math.max(
+                    0,
+                    Number(ev.target.value) || 0
+                  ),
+                }
+              : x
           )
         )
       }
-      className="w-16 rounded bg-secondary px-2 py-1 text-sm"
-      placeholder="reps"
+      className="w-14 rounded bg-secondary px-2 py-1 text-sm"
+      placeholder="0"
     />
   </div>
 
