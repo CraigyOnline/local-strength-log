@@ -5,6 +5,16 @@ import { getDb, type Workout } from "@/lib/db";
 import { getExercise } from "@/lib/exercises";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_app/history")({
   component: HistoryPage,
@@ -12,7 +22,6 @@ export const Route = createFileRoute("/_app/history")({
 
 function HistoryPage() {
   const { pathname } = useLocation();
-  // When a child route (/history/$id) is active, just render it
   if (pathname !== "/history" && pathname !== "/history/") {
     return <Outlet />;
   }
@@ -22,6 +31,10 @@ function HistoryPage() {
 function HistoryList() {
   const navigate = useNavigate();
   const [visibleCount, setVisibleCount] = useState(10);
+
+  // AlertDialog state — replaces browser confirm()
+  const [pendingDelete, setPendingDelete] = useState<Workout | null>(null);
+
   const workouts = useLiveQuery(
     () =>
       typeof window === "undefined"
@@ -30,11 +43,10 @@ function HistoryList() {
     [],
   ) as Workout[] | undefined;
 
-  async function remove(id: number | undefined, e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!id) return;
-    if (!confirm("Delete this workout?")) return;
-    await getDb().workouts.delete(id);
+  async function remove(workout: Workout) {
+    if (!workout.id) return;
+    await getDb().workouts.delete(workout.id);
+    setPendingDelete(null);
   }
 
   return (
@@ -42,58 +54,80 @@ function HistoryList() {
       <h1 className="text-2xl font-bold">Workout History</h1>
 
       {!workouts?.length && (
-        <p className="text-sm text-muted-foreground">No workouts yet. Start one from the Workout tab.</p>
+        <p className="text-sm text-muted-foreground">
+          No workouts yet. Start one from the Workout tab.
+        </p>
       )}
 
       <ul className="flex flex-col gap-3">
         {workouts?.slice(0, visibleCount).map((w) => {
-  const totalSets = w.exercises.reduce(
-    (a, e) => a + e.sets.filter((s) => s.completed).length,
-    0
-  );
+          const totalSets = w.exercises.reduce(
+            (a, e) => a + e.sets.filter((s) => s.completed).length,
+            0,
+          );
 
-  const totalVolume = w.exercises.reduce(
-    (sum, ex) =>
-      sum +
-      ex.sets.reduce(
-        (s, set) =>
-          s + ((set.weight ?? 0) * (set.reps ?? 0)),
-        0
-      ),
-    0
-  );
+          // Volume: skip bodyweight & cardio — weight × reps is meaningless for those
+          const totalVolume = w.exercises.reduce((sum, ex) => {
+            const def = getExercise(ex.exerciseId);
+            const isBodyweight = def?.equipment === "Bodyweight";
+            const isCardio = def?.equipment === "Cardio";
+            if (isBodyweight || isCardio) return sum;
+            return (
+              sum +
+              ex.sets.reduce(
+                (s, set) => s + (set.weight ?? 0) * (set.reps ?? 0),
+                0,
+              )
+            );
+          }, 0);
 
-  return (
+          return (
             <li
               key={w.id}
               className="cursor-pointer rounded-xl bg-card p-4"
-              onClick={() => w.id && navigate({ to: "/history/$id", params: { id: String(w.id) } })}
+              onClick={() =>
+                w.id &&
+                navigate({ to: "/history/$id", params: { id: String(w.id) } })
+              }
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{w.name}</p>
                   <p className="text-xs text-muted-foreground">
-  {new Date(w.startedAt).toLocaleDateString()} ·{" "}
-  {Math.max(1, Math.round((w.durationSec ?? 0) / 60))} min ·{" "}
-  {w.exercises.length} ex · {totalSets} sets
-</p>
+                    {new Date(w.startedAt).toLocaleDateString()} ·{" "}
+                    {Math.max(1, Math.round((w.durationSec ?? 0) / 60))} min ·{" "}
+                    {w.exercises.length} ex · {totalSets} sets
+                  </p>
 
-<p className="mt-1 text-xs text-muted-foreground">
-  Volume: {totalVolume.toLocaleString()} kg
-</p>
+                  {totalVolume > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Volume: {totalVolume.toLocaleString()} kg
+                    </p>
+                  )}
+
                   <div className="mt-2 flex flex-wrap gap-1">
                     {w.exercises.slice(0, 5).map((e, i) => (
-                      <span key={i} className="rounded bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                      <span
+                        key={i}
+                        className="rounded bg-secondary px-2 py-0.5 text-xs text-muted-foreground"
+                      >
                         {getExercise(e.exerciseId)?.name ?? e.exerciseId}
                       </span>
                     ))}
                     {w.exercises.length > 5 && (
-                      <span className="text-xs text-muted-foreground">+{w.exercises.length - 5}</span>
+                      <span className="text-xs text-muted-foreground">
+                        +{w.exercises.length - 5}
+                      </span>
                     )}
                   </div>
                 </div>
+
+                {/* Open AlertDialog instead of browser confirm() */}
                 <button
-                  onClick={(ev) => remove(w.id, ev)}
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    setPendingDelete(w);
+                  }}
                   aria-label="Delete workout"
                   className="p-2 text-destructive"
                 >
@@ -104,15 +138,36 @@ function HistoryList() {
           );
         })}
       </ul>
-	  {workouts &&
-  workouts.length > visibleCount && (
-    <Button
-      variant="outline"
-      onClick={() => setVisibleCount((v) => v + 10)}
-    >
-      Load More
-    </Button>
-)}
+
+      {workouts && workouts.length > visibleCount && (
+        <Button variant="outline" onClick={() => setVisibleCount((v) => v + 10)}>
+          Load More
+        </Button>
+      )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete workout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{pendingDelete?.name}" will be permanently deleted. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => pendingDelete && remove(pendingDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

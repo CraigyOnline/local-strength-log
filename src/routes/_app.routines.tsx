@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDb, type Routine } from "@/lib/db";
 import { EXERCISES, getExercise } from "@/lib/exercises";
 import { Plus, Pencil, Trash2, X, Check, ArrowUp, ArrowDown, Pin } from "lucide-react";
@@ -20,8 +20,22 @@ export const Route = createFileRoute("/_app/routines")({
   component: RoutinesPage,
 });
 
-// Height of the bottom nav bar — adjust this if your nav is a different height
-const BOTTOM_NAV_HEIGHT = 62;
+/**
+ * Height of the bottom nav bar.
+ * NOTE: _app.tsx uses pb-24 (96px) for the layout padding.
+ * This value must match the actual rendered height of <BottomTabs />.
+ * If you change the nav height, update both places.
+ */
+export const BOTTOM_NAV_HEIGHT = 62;
+
+// ─────────────────────────────────────────────
+// Undo state for routine deletion
+// ─────────────────────────────────────────────
+interface RoutineUndo {
+  routine: Routine;
+  timeoutId: ReturnType<typeof setTimeout>;
+  startTime: number;
+}
 
 function RoutinesPage() {
   const routines = useLiveQuery(
@@ -35,11 +49,55 @@ function RoutinesPage() {
 
   const [editing, setEditing] = useState<Routine | "new" | null>(null);
 
+  // ── Routine-level undo ────────────────────────────────────────────────
+  const [undo, setUndo] = useState<RoutineUndo | null>(null);
+  const [undoTimeLeft, setUndoTimeLeft] = useState(5);
+
+  useEffect(() => {
+    if (!undo) return;
+    const t = setInterval(() => {
+      const elapsed = (Date.now() - undo.startTime) / 1000;
+      setUndoTimeLeft(Math.max(0, 5 - Math.floor(elapsed)));
+    }, 200);
+    return () => clearInterval(t);
+  }, [undo]);
+
+  async function deleteRoutine(r: Routine) {
+    if (!r.id) return;
+
+    // Clear any existing undo timer
+    if (undo?.timeoutId) clearTimeout(undo.timeoutId);
+
+    // Soft-delete from DB immediately
+    await getDb().routines.delete(r.id);
+
+    const timeoutId = setTimeout(() => {
+      setUndo(null);
+      setUndoTimeLeft(5);
+    }, 5000);
+
+    setUndo({ routine: r, timeoutId, startTime: Date.now() });
+    setUndoTimeLeft(5);
+  }
+
+  async function undoDelete() {
+    if (!undo) return;
+    clearTimeout(undo.timeoutId);
+
+    // Re-insert without the old id so Dexie auto-assigns a new one
+    const { id: _id, ...rest } = undo.routine;
+    await getDb().routines.add(rest as Routine);
+
+    setUndo(null);
+    setUndoTimeLeft(5);
+  }
+
+  // ── Sorted list: pinned first, then newest ───────────────────────────
   const orderedRoutines = useMemo(() => {
     const list = routines ?? [];
     return [...list].sort((a, b) => {
-      const ap = (a as any).pinned ? 1 : 0;
-      const bp = (b as any).pinned ? 1 : 0;
+      const ap = a.pinned ? 1 : 0;
+      const bp = b.pinned ? 1 : 0;
       if (ap !== bp) return bp - ap;
       return (b.createdAt ?? 0) - (a.createdAt ?? 0);
     });
@@ -49,10 +107,6 @@ function RoutinesPage() {
 
   return (
     <>
-      {/*
-        Single scrollable column that fills the viewport above the bottom nav.
-        overflow-y-auto lives here — nowhere else on this page.
-      */}
       <div
         className="flex flex-col overflow-y-auto"
         style={{ height: `calc(100dvh - ${BOTTOM_NAV_HEIGHT}px)` }}
@@ -119,7 +173,7 @@ function RoutinesPage() {
                   {/* NAME */}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      {(r as any).pinned && (
+                      {r.pinned && (
                         <Pin className="h-3 w-3 text-primary" />
                       )}
                       <p className="truncate font-semibold">{r.name}</p>
@@ -134,26 +188,28 @@ function RoutinesPage() {
                     <button
                       onClick={() =>
                         getDb().routines.update(r.id!, {
-                          ...(r as any),
-                          pinned: !(r as any).pinned,
+                          pinned: !r.pinned,
                         })
                       }
                       className="rounded-md p-2 text-muted-foreground hover:bg-secondary"
-                      title="Pin"
+                      title={r.pinned ? "Unpin" : "Pin"}
                     >
-                      <Pin className="h-4 w-4" />
+                      <Pin className={`h-4 w-4 ${r.pinned ? "text-primary" : ""}`} />
                     </button>
 
                     <button
                       onClick={() => setEditing(r)}
                       className="rounded-md p-2 text-muted-foreground hover:bg-secondary"
+                      title="Edit"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
 
+                    {/* DELETE — now shows undo toast instead of immediate delete */}
                     <button
-                      onClick={() => r.id && getDb().routines.delete(r.id)}
+                      onClick={() => deleteRoutine(r)}
                       className="rounded-md p-2 text-destructive hover:bg-secondary"
+                      title="Delete"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -191,16 +247,36 @@ function RoutinesPage() {
         </div>
       </div>
 
-      {/* EDITOR — rendered outside the scroll container so it can go full-screen */}
+      {/* EDITOR */}
       {editing && (
         <RoutineEditor
           initial={editing === "new" ? null : editing}
           onClose={() => setEditing(null)}
         />
       )}
+
+      {/* UNDO TOAST — routine deletion */}
+      {undo && (
+        <div className="fixed bottom-20 left-4 right-4 z-[9999] mx-auto flex max-w-md items-center justify-between rounded-xl bg-zinc-900 px-4 py-3 text-white shadow-xl">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">"{undo.routine.name}" deleted</p>
+            <p className="text-xs text-white/60">Undoing in {undoTimeLeft}s…</p>
+          </div>
+          <button
+            onClick={undoDelete}
+            className="ml-4 shrink-0 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-black"
+          >
+            Undo
+          </button>
+        </div>
+      )}
     </>
   );
 }
+
+// ─────────────────────────────────────────────
+// RoutineEditor
+// ─────────────────────────────────────────────
 
 function RoutineEditor({
   initial,
@@ -296,18 +372,13 @@ function RoutineEditor({
   }
 
   return (
-    /*
-      The editor covers everything above the bottom nav.
-      It's a fixed overlay with its own internal scroll — the bottom nav
-      stays untouched beneath it.
-    */
     <div
       className="fixed inset-x-0 top-0 z-50 flex justify-center bg-background"
       style={{ bottom: `${BOTTOM_NAV_HEIGHT}px` }}
     >
       <div className="flex h-full w-full max-w-md flex-col">
 
-        {/* Fixed header — never scrolls */}
+        {/* Fixed header */}
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <button onClick={handleClose} className="p-2">
             <X className="h-5 w-5" />
@@ -330,7 +401,7 @@ function RoutineEditor({
           </button>
         </header>
 
-        {/* Scrollable body — the only scroll inside the editor */}
+        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 py-4 pb-6">
           <input
             autoFocus
@@ -472,9 +543,12 @@ function RoutineEditor({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your changes to this routine haven't been saved.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={handleCancel}>Keep editing</AlertDialogCancel>
             <AlertDialogAction onClick={handleDiscard}>Discard</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -482,6 +556,10 @@ function RoutineEditor({
     </div>
   );
 }
+
+// ─────────────────────────────────────────────
+// ExercisePicker — also used by workout + history routes
+// ─────────────────────────────────────────────
 
 export function ExercisePicker({
   onClose,
@@ -497,10 +575,6 @@ export function ExercisePicker({
   );
 
   return (
-    /*
-      Exercise picker also sits above the bottom nav only.
-      z-[60] keeps it above the editor (z-50).
-    */
     <div
       className="fixed inset-x-0 top-0 z-[60] flex justify-center bg-background"
       style={{ bottom: `${BOTTOM_NAV_HEIGHT}px` }}
@@ -521,7 +595,6 @@ export function ExercisePicker({
           />
         </header>
 
-        {/* This is the only scroll in the picker */}
         <ul className="flex-1 overflow-y-auto">
           {filtered.map((e) => (
             <li key={e.id}>
