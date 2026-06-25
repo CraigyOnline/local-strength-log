@@ -1,8 +1,10 @@
 import { createFileRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useState } from "react";
 import { getDb, type Workout } from "@/lib/db";
 import { getExercise } from "@/lib/exercises";
 import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_app/history")({
   component: HistoryPage,
@@ -19,7 +21,7 @@ function HistoryPage() {
 
 function HistoryList() {
   const navigate = useNavigate();
-
+  const [visibleCount, setVisibleCount] = useState(10);
   const workouts = useLiveQuery(
     () =>
       typeof window === "undefined"
@@ -44,7 +46,7 @@ function HistoryList() {
       )}
 
       <ul className="flex flex-col gap-3">
-        {workouts?.map((w) => {
+        {workouts?.slice(0, visibleCount).map((w) => {
   const totalSets = w.exercises.reduce(
     (a, e) => a + e.sets.filter((s) => s.completed).length,
     0
@@ -102,6 +104,15 @@ function HistoryList() {
           );
         })}
       </ul>
+	  {workouts &&
+  workouts.length > visibleCount && (
+    <Button
+      variant="outline"
+      onClick={() => setVisibleCount((v) => v + 10)}
+    >
+      Load More
+    </Button>
+)}
     </div>
   );
 }
