@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import {
   getDb,
@@ -10,7 +10,8 @@ import {
   type WorkoutSet,
 } from "@/lib/db";
 import { getExercise, isTimeBased } from "@/lib/exercises";
-import { ExercisePicker } from "./_app.routines";
+import { ExercisePicker } from "@/components/ExercisePicker";
+import { RestTimer } from "@/components/RestTimer";
 import { Check, Plus, Timer, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WorkoutSummary } from "@/components/WorkoutSummary";
@@ -72,7 +73,6 @@ function WorkoutPage() {
 
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [saveErrorDialogOpen, setSaveErrorDialogOpen] = useState(false);
-  const [pendingFinishExercises, setPendingFinishExercises] = useState<WorkoutExerciseLog[] | null>(null);
 
   useEffect(() => {
     if (active || !routineId || !routines) return;
@@ -161,43 +161,48 @@ function WorkoutPage() {
     );
   }
 
+  async function handleFinish(save: boolean) {
+    // Snapshot active now to avoid stale closure (#3)
+    const snapshot = active;
+    if (!snapshot) return;
+
+    if (!save) {
+      setActive(null);
+      navigate({ to: "/history" });
+      return;
+    }
+
+    const exercises: WorkoutExerciseLog[] = snapshot.exercises.map((e) => ({
+      exerciseId: e.exerciseId,
+      sets: e.sets.map(({ timerStart: _t, ...s }) => ({
+        weight: Number(s.weight) || 0,
+        reps: Number(s.reps) || 0,
+        duration: Number(s.duration) || 0,
+        completed:
+          s.completed ||
+          (Number(s.weight) || 0) > 0 ||
+          (Number(s.reps) || 0) > 0 ||
+          (Number(s.duration) || 0) > 0,
+      })),
+    }));
+
+    const hasAnyData = exercises.some((e) => e.sets.some((s) => s.completed));
+
+    if (!hasAnyData) {
+      setDiscardDialogOpen(true);
+      return;
+    }
+
+    await doSaveWorkout(snapshot, exercises, setActive, setSummary, setSaveErrorDialogOpen);
+  }
+
   return (
     <>
       <LiveSession
         session={active}
         setSession={setActive}
         onAddExercise={() => setPicking(true)}
-        onFinish={async (save: boolean) => {
-          if (save) {
-            const exercises: WorkoutExerciseLog[] = active.exercises.map((e) => ({
-              exerciseId: e.exerciseId,
-              sets: e.sets.map(({ timerStart: _t, ...s }) => ({
-                weight: Number(s.weight) || 0,
-                reps: Number(s.reps) || 0,
-                duration: Number(s.duration) || 0,
-                completed:
-                  s.completed ||
-                  (Number(s.weight) || 0) > 0 ||
-                  (Number(s.reps) || 0) > 0 ||
-                  (Number(s.duration) || 0) > 0,
-              })),
-            }));
-
-            const hasAnyData = exercises.some((e) => e.sets.some((s) => s.completed));
-
-            if (!hasAnyData) {
-              setPendingFinishExercises(exercises);
-              setDiscardDialogOpen(true);
-              return;
-            }
-
-            await doSaveWorkout(exercises, active, setActive, setSummary, setSaveErrorDialogOpen);
-            return;
-          }
-
-          setActive(null);
-          navigate({ to: "/history" });
-        }}
+        onFinish={handleFinish}
       />
       {picking && (
         <ExercisePicker
@@ -226,13 +231,10 @@ function WorkoutPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingFinishExercises(null)}>
-              Keep going
-            </AlertDialogCancel>
+            <AlertDialogCancel>Keep going</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setDiscardDialogOpen(false);
-                setPendingFinishExercises(null);
                 setActive(null);
                 navigate({ to: "/history" });
               }}
@@ -255,9 +257,7 @@ function WorkoutPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setSaveErrorDialogOpen(false)}>
-              OK
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => setSaveErrorDialogOpen(false)}>OK</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -265,21 +265,22 @@ function WorkoutPage() {
   );
 }
 
-// ── Save helper (extracted so dialogs can call it too) ───────────────────────
+// ── Save helper ──────────────────────────────────────────────────────────────
 async function doSaveWorkout(
+  snapshot: ActiveSession,
   exercises: WorkoutExerciseLog[],
-  active: { routine: { id?: number } | null; name: string; startedAt: number },
   setActive: (v: null) => void,
   setSummary: (w: Workout) => void,
   setSaveErrorDialogOpen: (v: boolean) => void,
 ) {
   const endedAt = Date.now();
   const workout: Workout = {
-    routineId: active.routine?.id,
-    name: active.name,
-    startedAt: active.startedAt,
+    routineId: snapshot.routine?.id,
+    name: snapshot.name,
+    startedAt: snapshot.startedAt,
     endedAt,
-    durationSec: Math.max(1, Math.round((endedAt - active.startedAt) / 1000)),
+    // Fix #7: use 0 as minimum, not 1 — honest display
+    durationSec: Math.max(0, Math.round((endedAt - snapshot.startedAt) / 1000)),
     exercises,
   };
   try {
@@ -305,6 +306,7 @@ interface LiveSessionProps {
 
 function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessionProps) {
   const [, force] = useState(0);
+  const [showRestTimer, setShowRestTimer] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => force((x) => x + 1), 250);
@@ -348,21 +350,23 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
     return `${w}kg × ${r}`;
   }
 
-  // ── Undo state ────────────────────────────────────────────────────────
+  // ── Undo state (fixed #2: use Date.now() math instead of tick counter) ────
   const [undo, setUndo] = useState<null | {
     exerciseId: string;
     set: WorkoutSet & { timerStart?: number | null };
     timeoutId: ReturnType<typeof setTimeout>;
+    startTime: number;
   }>(null);
-  const [undoTick, setUndoTick] = useState(0);
+  const [undoSecondsLeft, setUndoSecondsLeft] = useState(3);
 
   useEffect(() => {
     if (!undo) return;
-    const t = setInterval(() => setUndoTick((x) => x + 1), 100);
+    const t = setInterval(() => {
+      const elapsed = (Date.now() - undo.startTime) / 1000;
+      setUndoSecondsLeft(Math.max(0, 3 - Math.floor(elapsed)));
+    }, 200);
     return () => clearInterval(t);
   }, [undo]);
-
-  const undoSecondsLeft = undo ? Math.max(0, 3 - Math.floor(undoTick / 10)) : 0;
 
   function undoDelete() {
     if (!undo) return;
@@ -428,30 +432,52 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
     });
   }
 
+  // Fix #12: haptic feedback on set completion
+  function vibrate(pattern: number | number[]) {
+    try { navigator.vibrate?.(pattern); } catch { /* noop */ }
+  }
+
+  function completeSet(ei: number, si: number, currentlyCompleted: boolean) {
+    const newCompleted = !currentlyCompleted;
+    updateSet(ei, si, { completed: newCompleted });
+    if (newCompleted) {
+      vibrate(50);
+      // Show rest timer after completing a set (#10)
+      setShowRestTimer(true);
+    }
+  }
+
+  const lastSetRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   function addSet(ei: number) {
-    setSession((s) =>
-      s
-        ? {
-            ...s,
-            exercises: s.exercises.map((e, i) => {
-              if (i !== ei) return e;
-              const last = e.sets[e.sets.length - 1];
-              return {
-                ...e,
-                sets: [
-                  ...e.sets,
-                  {
-                    ...makeSet(),
-                    weight: last?.weight ?? 0,
-                    reps: last?.reps ?? 0,
-                    duration: last?.duration ?? 0,
-                  },
-                ],
-              };
-            }),
-          }
-        : s,
-    );
+    setSession((s) => {
+      if (!s) return s;
+      return {
+        ...s,
+        exercises: s.exercises.map((e, i) => {
+          if (i !== ei) return e;
+          const last = e.sets[e.sets.length - 1];
+          return {
+            ...e,
+            sets: [
+              ...e.sets,
+              {
+                ...makeSet(),
+                weight: last?.weight ?? 0,
+                reps: last?.reps ?? 0,
+                duration: last?.duration ?? 0,
+              },
+            ],
+          };
+        }),
+      };
+    });
+
+    // Scroll new set into view (#14)
+    setTimeout(() => {
+      const key = `exercise-${ei}`;
+      lastSetRefs.current[key]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 50);
   }
 
   function removeSet(ei: number, si: number) {
@@ -467,15 +493,14 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
 
       if (undo?.timeoutId) clearTimeout(undo.timeoutId);
 
-      const timeoutId = setTimeout(() => {
-        setUndo((current) => {
-          if (current?.timeoutId === timeoutId) return null;
-          return current;
-        });
-      }, 3000);
-
-      setUndo({ exerciseId: s.exercises[ei].exerciseId, set: setToDelete, timeoutId });
-      setUndoTick(0);
+      const timeoutId = setTimeout(() => setUndo(null), 3000);
+      setUndo({
+        exerciseId: s.exercises[ei].exerciseId,
+        set: setToDelete,
+        timeoutId,
+        startTime: Date.now(),
+      });
+      setUndoSecondsLeft(3);
 
       return updated;
     });
@@ -501,174 +526,203 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
   }
 
   return (
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-8">
-      <header className="flex items-center justify-between">
-        <input
-          value={session.name}
-          onChange={(e) => setSession((s) => (s ? { ...s, name: e.target.value } : s))}
-          className="min-w-0 flex-1 bg-transparent text-lg font-bold outline-none"
-        />
+    <>
+      <div className="flex flex-col gap-4 px-4 pt-4 pb-8">
+        <header className="flex items-center justify-between">
+          <input
+            value={session.name}
+            onChange={(e) => setSession((s) => (s ? { ...s, name: e.target.value } : s))}
+            className="min-w-0 flex-1 bg-transparent text-lg font-bold outline-none"
+          />
 
-        <div className="ml-2 flex items-center gap-1 text-sm text-muted-foreground">
-          <Timer className="h-4 w-4" />
-          <span className="tabular-nums">{formatTime(elapsed)}</span>
-        </div>
-      </header>
-
-      {session.exercises.map((ex, ei) => {
-        const def = getExercise(ex.exerciseId);
-        const timeBased = isTimeBased(def);
-
-        return (
-          <div key={ei} className="rounded-xl bg-card p-3">
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{def?.name ?? ex.exerciseId}</p>
-                <p className="text-xs text-muted-foreground">{def?.muscle}</p>
-              </div>
-              <button onClick={() => removeExercise(ei)} className="p-1 text-muted-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {(() => {
-              const prev = previousByExercise.get(ex.exerciseId);
-              if (!prev || prev.length === 0) return null;
-              return (
-                <div className="mt-2 rounded-md bg-secondary/50 px-2 py-1.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Previous Workout
-                  </p>
-                  <ul className="mt-0.5 text-xs tabular-nums text-foreground/80">
-                    {prev.map((s, i) => (
-                      <li key={i}>{formatPrevSet(s, timeBased)}</li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })()}
-
-            {def?.interval && (
-              <IntervalTimer
-                config={def.interval}
-                onComplete={() => markExerciseComplete(ei)}
-              />
-            )}
-
-            {!def?.interval && (
-              <>
-                <div className="mt-3 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
-                  <span>#</span>
-                  <span>{timeBased ? "Sec" : "Kg"}</span>
-                  <span>{timeBased ? "Distance/Notes" : "Reps"}</span>
-                  <span />
-                  <span />
-                </div>
-
-                {ex.sets.map((s, si) => (
-                  <div
-                    key={si}
-                    className="mt-2 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2"
-                  >
-                    <span className="text-sm font-semibold">{si + 1}</span>
-
-                    {timeBased ? (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <span className="min-w-[60px] tabular-nums text-sm">
-                            {formatTime(getLiveDuration(s))}
-                          </span>
-                          <button
-                            onClick={() => toggleTimer(ei, si)}
-                            className="rounded bg-secondary px-2 py-1 text-xs"
-                          >
-                            {s.timerStart ? "■" : "▶"}
-                          </button>
-                        </div>
-
-                        <NumField
-                          value={s.weight ?? 0}
-                          onCommit={(v) => updateSet(ei, si, { weight: v })}
-                          decimal
-                          placeholder="0"
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <NumField
-                          value={s.weight ?? 0}
-                          onCommit={(v) => updateSet(ei, si, { weight: v })}
-                          decimal
-                          placeholder="0"
-                        />
-                        <NumField
-                          value={s.reps ?? 0}
-                          onCommit={(v) => updateSet(ei, si, { reps: v })}
-                          placeholder="0"
-                        />
-                      </>
-                    )}
-
-                    <button
-                      onClick={() => updateSet(ei, si, { completed: !s.completed })}
-                      className={`flex h-7 w-7 items-center justify-center rounded ${
-                        s.completed
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
-                      }`}
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-
-                    <button onClick={() => removeSet(ei, si)} className="text-muted-foreground">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-
-                <button
-                  onClick={() => addSet(ei)}
-                  className="mt-3 w-full rounded-lg bg-secondary py-2 text-sm font-medium"
-                >
-                  + Add set
-                </button>
-              </>
-            )}
+          <div className="ml-2 flex items-center gap-1 text-sm text-muted-foreground">
+            <Timer className="h-4 w-4" />
+            <span className="tabular-nums">{formatTime(elapsed)}</span>
           </div>
-        );
-      })}
+        </header>
 
-      <Button variant="outline" onClick={onAddExercise}>
-        <Plus className="mr-2 h-4 w-4" /> Add exercise
-      </Button>
+        {session.exercises.map((ex, ei) => {
+          const def = getExercise(ex.exerciseId);
+          const timeBased = isTimeBased(def);
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="ghost" onClick={() => onFinish(false)} className="text-destructive">
-          Cancel
+          return (
+            <div key={ei} className="rounded-xl bg-card p-3">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{def?.name ?? ex.exerciseId}</p>
+                  <p className="text-xs text-muted-foreground">{def?.muscle}</p>
+                </div>
+                {/* Fix #11: 44px minimum tap target */}
+                <button
+                  onClick={() => removeExercise(ei)}
+                  className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {(() => {
+                const prev = previousByExercise.get(ex.exerciseId);
+                if (!prev || prev.length === 0) return null;
+                return (
+                  <div className="mt-2 rounded-md bg-secondary/50 px-2 py-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Previous Workout
+                    </p>
+                    <ul className="mt-0.5 text-xs tabular-nums text-foreground/80">
+                      {prev.map((s, i) => (
+                        <li key={i}>{formatPrevSet(s, timeBased)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
+
+              {def?.interval && (
+                <IntervalTimer
+                  config={def.interval}
+                  onComplete={() => markExerciseComplete(ei)}
+                />
+              )}
+
+              {!def?.interval && (
+                <>
+                  {/* Column headers */}
+                  <div className="mt-3 grid grid-cols-[32px_1fr_1fr_52px_44px] items-center gap-2 text-xs text-muted-foreground px-1">
+                    <span>#</span>
+                    <span>{timeBased ? "Sec" : "Kg"}</span>
+                    <span>{timeBased ? "Dist/Notes" : "Reps"}</span>
+                    <span className="text-center">Done</span>
+                    <span />
+                  </div>
+
+                  {ex.sets.map((s, si) => {
+                    const isLast = si === ex.sets.length - 1;
+                    return (
+                      <div
+                        key={si}
+                        ref={isLast ? (el) => { lastSetRefs.current[`exercise-${ei}`] = el; } : undefined}
+                        className="mt-2 grid grid-cols-[32px_1fr_1fr_52px_44px] items-center gap-2"
+                      >
+                        <span className="text-sm font-semibold text-center">{si + 1}</span>
+
+                        {timeBased ? (
+                          <>
+                            <div className="flex items-center gap-1.5">
+                              <span className="min-w-[48px] tabular-nums text-sm">
+                                {formatTime(getLiveDuration(s))}
+                              </span>
+                              <button
+                                onClick={() => toggleTimer(ei, si)}
+                                className="rounded bg-secondary px-1.5 py-1 text-xs"
+                              >
+                                {s.timerStart ? "■" : "▶"}
+                              </button>
+                            </div>
+                            <NumField
+                              value={s.weight ?? 0}
+                              onCommit={(v) => updateSet(ei, si, { weight: v })}
+                              decimal
+                              placeholder="0"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <NumField
+                              value={s.weight ?? 0}
+                              onCommit={(v) => updateSet(ei, si, { weight: v })}
+                              decimal
+                              placeholder="0"
+                            />
+                            <NumField
+                              value={s.reps ?? 0}
+                              onCommit={(v) => updateSet(ei, si, { reps: v })}
+                              placeholder="0"
+                            />
+                          </>
+                        )}
+
+                        {/* Fix #11: Complete button — 52px wide, full-height tap area */}
+                        <button
+                          onClick={() => completeSet(ei, si, s.completed)}
+                          className={`flex h-11 w-full items-center justify-center rounded-lg transition-colors ${
+                            s.completed
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-secondary text-muted-foreground"
+                          }`}
+                          aria-label={s.completed ? "Mark incomplete" : "Mark complete"}
+                        >
+                          <Check className="h-5 w-5" />
+                        </button>
+
+                        {/* Fix #11: Delete button — 44px tap target */}
+                        <button
+                          onClick={() => removeSet(ei, si)}
+                          className="flex h-11 w-11 items-center justify-center text-muted-foreground"
+                          aria-label="Delete set"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    onClick={() => addSet(ei)}
+                    className="mt-3 w-full rounded-lg bg-secondary py-3 text-sm font-medium min-h-[44px]"
+                  >
+                    + Add set
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })}
+
+        <Button variant="outline" onClick={onAddExercise} className="min-h-[44px]">
+          <Plus className="mr-2 h-4 w-4" /> Add exercise
         </Button>
-        <Button onClick={() => onFinish(true)}>Finish</Button>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => onFinish(false)}
+            className="text-destructive min-h-[44px]"
+          >
+            Cancel
+          </Button>
+          <Button onClick={() => onFinish(true)} className="min-h-[44px]">
+            Finish
+          </Button>
+        </div>
+
+        {/* Undo toast */}
+        {undo && (
+          <div className="fixed bottom-4 left-4 right-4 z-[9999] mx-auto flex max-w-md items-center justify-between rounded-lg bg-black px-4 py-3 text-white shadow-lg pointer-events-auto">
+            <span className="text-sm">
+              Set deleted{" "}
+              <span className="ml-2 text-xs text-white/70">{undoSecondsLeft}s</span>
+            </span>
+            <button
+              onClick={undoDelete}
+              className="rounded bg-white px-3 py-1 text-sm font-medium text-black min-h-[36px]"
+            >
+              Undo
+            </button>
+          </div>
+        )}
       </div>
 
-      {undo && (
-        <div className="fixed bottom-4 left-4 right-4 z-[9999] mx-auto flex max-w-md items-center justify-between rounded-lg bg-black px-4 py-3 text-white shadow-lg pointer-events-auto">
-          <span className="text-sm">
-            Set deleted{" "}
-            <span className="ml-2 text-xs text-white/70">{undoSecondsLeft}s</span>
-          </span>
-          <button
-            onClick={undoDelete}
-            className="rounded bg-white px-3 py-1 text-sm font-medium text-black"
-          >
-            Undo
-          </button>
-        </div>
+      {/* Rest timer overlay (#10) */}
+      {showRestTimer && (
+        <RestTimer onDismiss={() => setShowRestTimer(false)} />
       )}
-    </div>
+    </>
   );
 }
 
 // ─────────────────────────────────────────────
-// NumField
+// NumField — Fix #9: don't reset while focused
 // ─────────────────────────────────────────────
 
 function NumField({
@@ -683,10 +737,13 @@ function NumField({
   placeholder?: string;
 }) {
   const [str, setStr] = useState<string>(String(value ?? 0));
+  const focusedRef = useRef(false);
 
+  // Only sync from prop when the field isn't being edited (#9)
   useEffect(() => {
-    setStr(String(value ?? 0));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!focusedRef.current) {
+      setStr(String(value ?? 0));
+    }
   }, [value]);
 
   const re = decimal ? /^\d*\.?\d*$/ : /^\d*$/;
@@ -697,6 +754,7 @@ function NumField({
       inputMode={decimal ? "decimal" : "numeric"}
       value={str}
       placeholder={placeholder}
+      onFocus={() => { focusedRef.current = true; }}
       onChange={(e) => {
         const v = e.target.value;
         if (!re.test(v)) return;
@@ -705,12 +763,13 @@ function NumField({
         if (Number.isFinite(n)) onCommit(n);
       }}
       onBlur={() => {
+        focusedRef.current = false;
         if (str === "" || str === ".") {
           setStr("0");
           onCommit(0);
         }
       }}
-      className="w-full rounded bg-secondary px-2 py-1 text-sm outline-none"
+      className="w-full rounded bg-secondary px-2 py-1 text-sm outline-none min-h-[40px]"
     />
   );
 }
@@ -783,15 +842,9 @@ function IntervalTimer({
           Interval
         </p>
         <div className="mt-1 flex gap-4 tabular-nums">
-          <span>
-            Rounds: <b>{config.rounds}</b>
-          </span>
-          <span>
-            Work: <b>{fmtInterval(config.workSeconds)}</b>
-          </span>
-          <span>
-            Rest: <b>{fmtInterval(config.restSeconds)}</b>
-          </span>
+          <span>Rounds: <b>{config.rounds}</b></span>
+          <span>Work: <b>{fmtInterval(config.workSeconds)}</b></span>
+          <span>Rest: <b>{fmtInterval(config.restSeconds)}</b></span>
         </div>
       </div>
 
@@ -826,12 +879,12 @@ function IntervalTimer({
                   setStarted(true);
                   setRunning((r) => !r);
                 }}
-                className="rounded bg-secondary px-2 py-1 text-xs"
+                className="rounded bg-secondary px-2 py-1 text-xs min-h-[36px]"
               >
                 {running ? "Pause" : started ? "Resume" : "Start"}
               </button>
             ) : null}
-            <button onClick={reset} className="rounded bg-secondary px-2 py-1 text-xs">
+            <button onClick={reset} className="rounded bg-secondary px-2 py-1 text-xs min-h-[36px]">
               Reset
             </button>
           </div>
