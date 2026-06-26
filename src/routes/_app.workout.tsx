@@ -15,6 +15,16 @@ import { Check, Plus, Timer, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WorkoutSummary } from "@/components/WorkoutSummary";
 import { formatTime } from "@/lib/format";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const searchSchema = z.object({
   routineId: z.coerce.number().optional(),
@@ -59,6 +69,10 @@ function WorkoutPage() {
   const [active, setActive] = useState<ActiveSession | null>(null);
   const [picking, setPicking] = useState(false);
   const [summary, setSummary] = useState<Workout | null>(null);
+
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [saveErrorDialogOpen, setSaveErrorDialogOpen] = useState(false);
+  const [pendingFinishExercises, setPendingFinishExercises] = useState<WorkoutExerciseLog[] | null>(null);
 
   useEffect(() => {
     if (active || !routineId || !routines) return;
@@ -172,29 +186,13 @@ function WorkoutPage() {
             const hasAnyData = exercises.some((e) => e.sets.some((s) => s.completed));
 
             if (!hasAnyData) {
-              const ok = confirm("This workout is empty — discard it?");
-              if (!ok) return;
-            } else {
-              const endedAt = Date.now();
-              const workout: Workout = {
-                routineId: active.routine?.id,
-                name: active.name,
-                startedAt: active.startedAt,
-                endedAt,
-                durationSec: Math.max(1, Math.round((endedAt - active.startedAt) / 1000)),
-                exercises,
-              };
-              try {
-                const savedId = await getDb().workouts.add(workout);
-                setActive(null);
-                setSummary({ ...workout, id: savedId as number });
-                return;
-              } catch (err) {
-                console.error("Failed to save workout", err);
-                alert("Failed to save workout. See console.");
-                return;
-              }
+              setPendingFinishExercises(exercises);
+              setDiscardDialogOpen(true);
+              return;
             }
+
+            await doSaveWorkout(exercises, active, setActive, setSummary, setSaveErrorDialogOpen);
+            return;
           }
 
           setActive(null);
@@ -217,8 +215,81 @@ function WorkoutPage() {
           }}
         />
       )}
+
+      {/* Empty workout — discard confirmation */}
+      <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard empty workout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              No sets were completed. Discard this session without saving?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingFinishExercises(null)}>
+              Keep going
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setDiscardDialogOpen(false);
+                setPendingFinishExercises(null);
+                setActive(null);
+                navigate({ to: "/history" });
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Save error */}
+      <AlertDialog open={saveErrorDialogOpen} onOpenChange={setSaveErrorDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Failed to save workout</AlertDialogTitle>
+            <AlertDialogDescription>
+              Something went wrong saving your session. Your data is still in memory — try
+              finishing again, or check the browser console for details.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setSaveErrorDialogOpen(false)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
+}
+
+// ── Save helper (extracted so dialogs can call it too) ───────────────────────
+async function doSaveWorkout(
+  exercises: WorkoutExerciseLog[],
+  active: { routine: { id?: number } | null; name: string; startedAt: number },
+  setActive: (v: null) => void,
+  setSummary: (w: Workout) => void,
+  setSaveErrorDialogOpen: (v: boolean) => void,
+) {
+  const endedAt = Date.now();
+  const workout: Workout = {
+    routineId: active.routine?.id,
+    name: active.name,
+    startedAt: active.startedAt,
+    endedAt,
+    durationSec: Math.max(1, Math.round((endedAt - active.startedAt) / 1000)),
+    exercises,
+  };
+  try {
+    const savedId = await getDb().workouts.add(workout);
+    setActive(null);
+    setSummary({ ...workout, id: savedId as number });
+  } catch (err) {
+    console.error("Failed to save workout", err);
+    setSaveErrorDialogOpen(true);
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -440,7 +511,6 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
 
         <div className="ml-2 flex items-center gap-1 text-sm text-muted-foreground">
           <Timer className="h-4 w-4" />
-          {/* formatTime is now imported from @/lib/format */}
           <span className="tabular-nums">{formatTime(elapsed)}</span>
         </div>
       </header>

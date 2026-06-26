@@ -32,7 +32,6 @@ function HistoryList() {
   const navigate = useNavigate();
   const [visibleCount, setVisibleCount] = useState(10);
 
-  // AlertDialog state — replaces browser confirm()
   const [pendingDelete, setPendingDelete] = useState<Workout | null>(null);
 
   const workouts = useLiveQuery(
@@ -122,7 +121,6 @@ function HistoryList() {
                   </div>
                 </div>
 
-                {/* Open AlertDialog instead of browser confirm() */}
                 <button
                   onClick={(ev) => {
                     ev.stopPropagation();

@@ -44,7 +44,6 @@ function HistoryDetailPage() {
   const [draft, setDraft] = useState<Workout | null>(null);
   const [picking, setPicking] = useState(false);
 
-  // ── AlertDialog state (replaces browser confirm()) ───────────────────
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // ── Undo state ───────────────────────────────────────────────────────
@@ -455,7 +454,6 @@ function HistoryDetailPage() {
           </Button>
         </>
       ) : (
-        // Replaced browser confirm() with AlertDialog
         <Button
           variant="ghost"
           onClick={() => setDeleteDialogOpen(true)}
@@ -482,7 +480,7 @@ function HistoryDetailPage() {
         </div>
       )}
 
-      {/* Delete workout confirmation — replaces browser confirm() */}
+      {/* Delete workout */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
