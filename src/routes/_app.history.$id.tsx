@@ -191,9 +191,12 @@ function HistoryDetailPage() {
     si: number,
     p: Partial<{ weight: number; reps: number; duration: number; completed: boolean }>,
   ) {
+    if (!draft) return;
+    const exerciseId = draft.exercises[ei].exerciseId;
+    const mergedSet = { ...draft.exercises[ei].sets[si], ...p };
     setDraft((d) => {
       if (!d) return d;
-      const updated = {
+      return {
         ...d,
         exercises: d.exercises.map((e, i) =>
           i !== ei
@@ -204,9 +207,8 @@ function HistoryDetailPage() {
               },
         ),
       };
-      checkPR(updated.exercises[ei].exerciseId, updated.exercises[ei].sets[si]);
-      return updated;
     });
+    checkPR(exerciseId, mergedSet);
   }
 
   function addSet(ei: number) {
