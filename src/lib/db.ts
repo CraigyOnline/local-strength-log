@@ -85,12 +85,23 @@ export class AppDB extends Dexie {
     });
 
     // Version 4: adds `pinned` index to routines.
-    // Existing rows will have pinned = undefined (treated as falsy) — no data loss.
-    this.version(4).stores({
-      routines: "++id, name, createdAt, pinned",
-      workouts: "++id, startedAt, routineId",
-      prHistory: "++id, exerciseId, type, value, workoutId, createdAt",
-    });
+    // Existing rows have pinned explicitly set to false via upgrade().
+    this.version(4)
+      .stores({
+        routines: "++id, name, createdAt, pinned",
+        workouts: "++id, startedAt, routineId",
+        prHistory: "++id, exerciseId, type, value, workoutId, createdAt",
+      })
+      .upgrade((tx) => {
+        return tx
+          .table("routines")
+          .toCollection()
+          .modify((routine) => {
+            if (routine.pinned === undefined) {
+              routine.pinned = false;
+            }
+          });
+      });
   }
 }
 
@@ -101,6 +112,15 @@ export function getDb(): AppDB {
     throw new Error("DB is only available in the browser");
   }
 
-  if (!_db) _db = new AppDB();
+  if (!_db) {
+    try {
+      _db = new AppDB();
+    } catch (err) {
+      throw new Error(
+        `Failed to initialise database. IndexedDB may be unavailable (e.g. private browsing mode). Original error: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
   return _db;
 }
