@@ -195,6 +195,7 @@ function WorkoutPage() {
             return;
           }
 
+          setPendingFinishExercises(null);
           setActive(null);
           navigate({ to: "/history" });
         }}
