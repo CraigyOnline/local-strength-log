@@ -269,7 +269,7 @@ function WorkoutPage() {
 // ── Save helper (extracted so dialogs can call it too) ───────────────────────
 async function doSaveWorkout(
   exercises: WorkoutExerciseLog[],
-  active: { routine: { id?: number } | null; name: string; startedAt: number },
+  active: ActiveSession,
   setActive: (v: null) => void,
   setSummary: (w: Workout) => void,
   setSaveErrorDialogOpen: (v: boolean) => void,
