@@ -18,19 +18,20 @@ export interface Routine {
   name: string;
   exercises: RoutineExercise[];
   createdAt: number;
+  pinned?: boolean;
 }
 
 /**
  * WORKOUTS
  */
 export interface WorkoutSet {
-  // 🆕 stable identity for undo / list reconciliation
+  // stable identity for undo / list reconciliation
   id?: string;
 
   weight: number;
   reps: number;
 
-  // 🆕 time-based support (planks, holds, etc.)
+  // time-based support (planks, holds, etc.)
   duration?: number;
 
   completed: boolean;
@@ -52,7 +53,7 @@ export interface Workout {
 }
 
 /**
- * 🏆 PR SYSTEM
+ * PR SYSTEM
  */
 export interface PRRecord {
   id?: number;
@@ -72,8 +73,6 @@ export interface PRRecord {
 export class AppDB extends Dexie {
   routines!: Table<Routine, number>;
   workouts!: Table<Workout, number>;
-
-  // 🆕 PR table
   prHistory!: Table<PRRecord, number>;
 
   constructor() {
@@ -82,8 +81,14 @@ export class AppDB extends Dexie {
     this.version(3).stores({
       routines: "++id, name, createdAt",
       workouts: "++id, startedAt, routineId",
+      prHistory: "++id, exerciseId, type, value, workoutId, createdAt",
+    });
 
-      // 🆕 PR index
+    // Version 4: adds `pinned` index to routines.
+    // Existing rows will have pinned = undefined (treated as falsy) — no data loss.
+    this.version(4).stores({
+      routines: "++id, name, createdAt, pinned",
+      workouts: "++id, startedAt, routineId",
       prHistory: "++id, exerciseId, type, value, workoutId, createdAt",
     });
   }
