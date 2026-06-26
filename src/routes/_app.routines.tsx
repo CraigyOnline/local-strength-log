@@ -2,11 +2,9 @@ import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDb, type Routine } from "@/lib/db";
-import { getExercise } from "@/lib/exercises";
-import { Plus, Pencil, Trash2, X, ArrowUp, ArrowDown, Pin } from "lucide-react";
+import { EXERCISES, getExercise } from "@/lib/exercises";
+import { Plus, Pencil, Trash2, X, Check, ArrowUp, ArrowDown, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ExercisePicker } from "@/components/ExercisePicker";
-import { BOTTOM_NAV_HEIGHT } from "@/lib/constants";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +19,14 @@ import {
 export const Route = createFileRoute("/_app/routines")({
   component: RoutinesPage,
 });
+
+/**
+ * Height of the bottom nav bar.
+ * NOTE: _app.tsx uses pb-24 (96px) for the layout padding.
+ * This value must match the actual rendered height of <BottomTabs />.
+ * If you change the nav height, update both places.
+ */
+export const BOTTOM_NAV_HEIGHT = 62;
 
 // ─────────────────────────────────────────────
 // Undo state for routine deletion
@@ -43,6 +49,7 @@ function RoutinesPage() {
 
   const [editing, setEditing] = useState<Routine | "new" | null>(null);
 
+  // ── Routine-level undo ────────────────────────────────────────────────
   const [undo, setUndo] = useState<RoutineUndo | null>(null);
   const [undoTimeLeft, setUndoTimeLeft] = useState(5);
 
@@ -57,12 +64,18 @@ function RoutinesPage() {
 
   async function deleteRoutine(r: Routine) {
     if (!r.id) return;
+
+    // Clear any existing undo timer
     if (undo?.timeoutId) clearTimeout(undo.timeoutId);
+
+    // Soft-delete from DB immediately
     await getDb().routines.delete(r.id);
+
     const timeoutId = setTimeout(() => {
       setUndo(null);
       setUndoTimeLeft(5);
     }, 5000);
+
     setUndo({ routine: r, timeoutId, startTime: Date.now() });
     setUndoTimeLeft(5);
   }
@@ -70,12 +83,16 @@ function RoutinesPage() {
   async function undoDelete() {
     if (!undo) return;
     clearTimeout(undo.timeoutId);
+
+    // Re-insert without the old id so Dexie auto-assigns a new one
     const { id: _id, ...rest } = undo.routine;
     await getDb().routines.add(rest as Routine);
+
     setUndo(null);
     setUndoTimeLeft(5);
   }
 
+  // ── Sorted list: pinned first, then newest ───────────────────────────
   const orderedRoutines = useMemo(() => {
     const list = routines ?? [];
     return [...list].sort((a, b) => {
@@ -95,6 +112,8 @@ function RoutinesPage() {
         style={{ height: `calc(100dvh - ${BOTTOM_NAV_HEIGHT}px)` }}
       >
         <div className="flex flex-col gap-4 px-4 pt-6 pb-8">
+
+          {/* HEADER */}
           <header className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold">Routines</h1>
@@ -108,7 +127,7 @@ function RoutinesPage() {
 
             <button
               onClick={() => setEditing("new")}
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold min-h-[44px]"
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
               style={{
                 background: "var(--color-primary)",
                 color: "var(--color-primary-foreground)",
@@ -119,6 +138,7 @@ function RoutinesPage() {
             </button>
           </header>
 
+          {/* NEXT UP */}
           {nextRoutine && (
             <div className="rounded-2xl border border-border/50 bg-card p-4">
               <p className="text-xs text-muted-foreground">Next up</p>
@@ -133,6 +153,7 @@ function RoutinesPage() {
             </div>
           )}
 
+          {/* EMPTY STATE */}
           {(routines ?? []).length === 0 && (
             <div className="rounded-2xl bg-card p-6 text-center text-sm text-muted-foreground">
               <p className="mb-3">No routines yet</p>
@@ -143,13 +164,18 @@ function RoutinesPage() {
             </div>
           )}
 
+          {/* LIST */}
           <ul className="flex flex-col gap-3">
             {orderedRoutines.map((r) => (
               <li key={r.id} className="rounded-2xl bg-card p-4">
                 <div className="flex items-start justify-between gap-2">
+
+                  {/* NAME */}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      {r.pinned && <Pin className="h-3 w-3 text-primary" />}
+                      {r.pinned && (
+                        <Pin className="h-3 w-3 text-primary" />
+                      )}
                       <p className="truncate font-semibold">{r.name}</p>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -157,10 +183,15 @@ function RoutinesPage() {
                     </p>
                   </div>
 
+                  {/* ACTIONS */}
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => getDb().routines.update(r.id!, { pinned: !r.pinned })}
-                      className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground"
+                      onClick={() =>
+                        getDb().routines.update(r.id!, {
+                          pinned: !r.pinned,
+                        })
+                      }
+                      className="rounded-md p-2 text-muted-foreground hover:bg-secondary"
                       title={r.pinned ? "Unpin" : "Pin"}
                     >
                       <Pin className={`h-4 w-4 ${r.pinned ? "text-primary" : ""}`} />
@@ -168,15 +199,16 @@ function RoutinesPage() {
 
                     <button
                       onClick={() => setEditing(r)}
-                      className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground"
+                      className="rounded-md p-2 text-muted-foreground hover:bg-secondary"
                       title="Edit"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
 
+                    {/* DELETE — now shows undo toast instead of immediate delete */}
                     <button
                       onClick={() => deleteRoutine(r)}
-                      className="flex h-11 w-11 items-center justify-center rounded-md text-destructive"
+                      className="rounded-md p-2 text-destructive hover:bg-secondary"
                       title="Delete"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -184,6 +216,7 @@ function RoutinesPage() {
                   </div>
                 </div>
 
+                {/* EXERCISES */}
                 <div className="mt-2 flex flex-wrap gap-1">
                   {r.exercises.map((e, i) => (
                     <span
@@ -195,10 +228,11 @@ function RoutinesPage() {
                   ))}
                 </div>
 
+                {/* PRIMARY ACTION */}
                 <Link
                   to="/workout"
                   search={{ routineId: r.id }}
-                  className="mt-3 block rounded-lg py-3 text-center text-sm font-semibold min-h-[44px] flex items-center justify-center"
+                  className="mt-3 block rounded-lg py-2 text-center text-sm font-semibold"
                   style={{
                     background: "var(--color-primary)",
                     color: "var(--color-primary-foreground)",
@@ -209,9 +243,11 @@ function RoutinesPage() {
               </li>
             ))}
           </ul>
+
         </div>
       </div>
 
+      {/* EDITOR */}
       {editing && (
         <RoutineEditor
           initial={editing === "new" ? null : editing}
@@ -219,6 +255,7 @@ function RoutinesPage() {
         />
       )}
 
+      {/* UNDO TOAST — routine deletion */}
       {undo && (
         <div className="fixed bottom-20 left-4 right-4 z-[9999] mx-auto flex max-w-md items-center justify-between rounded-xl bg-zinc-900 px-4 py-3 text-white shadow-xl">
           <div className="min-w-0">
@@ -227,7 +264,7 @@ function RoutinesPage() {
           </div>
           <button
             onClick={undoDelete}
-            className="ml-4 shrink-0 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-black min-h-[36px]"
+            className="ml-4 shrink-0 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-black"
           >
             Undo
           </button>
@@ -254,7 +291,9 @@ function RoutineEditor({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const hasChanges = useMemo(() => {
-    if (!initial) return name.trim() !== "" || exercises.length > 0;
+    if (!initial) {
+      return name.trim() !== "" || exercises.length > 0;
+    }
     if (name !== initial.name) return true;
     if (exercises.length !== initial.exercises.length) return true;
     return exercises.some((e, i) => {
@@ -263,10 +302,15 @@ function RoutineEditor({
     });
   }, [name, exercises, initial]);
 
-  const blocker = useBlocker({ shouldBlockFn: () => hasChanges, withResolver: true });
+  const blocker = useBlocker({
+    shouldBlockFn: () => hasChanges,
+    withResolver: true,
+  });
 
   useEffect(() => {
-    if (blocker.status === "blocked") setConfirmOpen(true);
+    if (blocker.status === "blocked") {
+      setConfirmOpen(true);
+    }
   }, [blocker.status]);
 
   const handleClose = useCallback(() => {
@@ -276,13 +320,18 @@ function RoutineEditor({
 
   const handleDiscard = useCallback(() => {
     setConfirmOpen(false);
-    if (blocker.status === "blocked") blocker.proceed();
-    else onClose();
+    if (blocker.status === "blocked") {
+      blocker.proceed();
+    } else {
+      onClose();
+    }
   }, [blocker, onClose]);
 
   const handleCancel = useCallback(() => {
     setConfirmOpen(false);
-    if (blocker.status === "blocked") blocker.reset();
+    if (blocker.status === "blocked") {
+      blocker.reset();
+    }
   }, [blocker]);
 
   function moveExerciseUp(index: number) {
@@ -306,12 +355,19 @@ function RoutineEditor({
   async function save() {
     const trimmed = name.trim();
     if (!trimmed || exercises.length === 0) return;
+
     const db = getDb();
+
     if (initial?.id) {
       await db.routines.update(initial.id, { name: trimmed, exercises });
     } else {
-      await db.routines.add({ name: trimmed, exercises, createdAt: Date.now() });
+      await db.routines.add({
+        name: trimmed,
+        exercises,
+        createdAt: Date.now(),
+      });
     }
+
     onClose();
   }
 
@@ -321,8 +377,10 @@ function RoutineEditor({
       style={{ bottom: `${BOTTOM_NAV_HEIGHT}px` }}
     >
       <div className="flex h-full w-full max-w-md flex-col">
+
+        {/* Fixed header */}
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
-          <button onClick={handleClose} className="flex h-11 w-11 items-center justify-center">
+          <button onClick={handleClose} className="p-2">
             <X className="h-5 w-5" />
           </button>
 
@@ -333,7 +391,7 @@ function RoutineEditor({
           <button
             onClick={save}
             disabled={!name.trim() || exercises.length === 0}
-            className="rounded-full px-4 py-1.5 text-sm font-semibold disabled:opacity-40 min-h-[36px]"
+            className="rounded-full px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
             style={{
               background: "var(--color-primary)",
               color: "var(--color-primary-foreground)",
@@ -343,6 +401,7 @@ function RoutineEditor({
           </button>
         </header>
 
+        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 py-4 pb-6">
           <input
             autoFocus
@@ -369,6 +428,7 @@ function RoutineEditor({
                     <p className="text-xs text-muted-foreground">{def?.muscle}</p>
 
                     <div className="mt-3 flex flex-wrap gap-3">
+
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-muted-foreground">Sets</span>
                         <input
@@ -380,8 +440,8 @@ function RoutineEditor({
                               xs.map((x, idx) =>
                                 idx === i
                                   ? { ...x, sets: Math.max(1, Number(ev.target.value) || 1) }
-                                  : x,
-                              ),
+                                  : x
+                              )
                             )
                           }
                           className="w-14 rounded bg-secondary px-2 py-1 text-sm"
@@ -400,8 +460,8 @@ function RoutineEditor({
                               xs.map((x, idx) =>
                                 idx === i
                                   ? { ...x, targetWeight: Math.max(0, Number(ev.target.value) || 0) }
-                                  : x,
-                              ),
+                                  : x
+                              )
                             )
                           }
                           className="w-16 rounded bg-secondary px-2 py-1 text-sm"
@@ -420,14 +480,15 @@ function RoutineEditor({
                               xs.map((x, idx) =>
                                 idx === i
                                   ? { ...x, targetReps: Math.max(0, Number(ev.target.value) || 0) }
-                                  : x,
-                              ),
+                                  : x
+                              )
                             )
                           }
                           className="w-14 rounded bg-secondary px-2 py-1 text-sm"
                           placeholder="0"
                         />
                       </div>
+
                     </div>
                   </div>
 
@@ -435,7 +496,7 @@ function RoutineEditor({
                     <button
                       onClick={() => moveExerciseUp(i)}
                       disabled={i === 0}
-                      className="flex h-10 w-10 items-center justify-center rounded disabled:opacity-30"
+                      className="rounded p-1 disabled:opacity-30"
                     >
                       <ArrowUp className="h-4 w-4" />
                     </button>
@@ -443,14 +504,14 @@ function RoutineEditor({
                     <button
                       onClick={() => moveExerciseDown(i)}
                       disabled={i === exercises.length - 1}
-                      className="flex h-10 w-10 items-center justify-center rounded disabled:opacity-30"
+                      className="rounded p-1 disabled:opacity-30"
                     >
                       <ArrowDown className="h-4 w-4" />
                     </button>
 
                     <button
                       onClick={() => setExercises((xs) => xs.filter((_, j) => j !== i))}
-                      className="flex h-10 w-10 items-center justify-center text-destructive"
+                      className="text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -460,11 +521,12 @@ function RoutineEditor({
             })}
           </ul>
 
-          <Button className="mt-4 w-full min-h-[44px]" onClick={() => setPicking(true)}>
+          <Button className="mt-4 w-full" onClick={() => setPicking(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add exercise
           </Button>
         </div>
+
       </div>
 
       {picking && (
@@ -491,6 +553,66 @@ function RoutineEditor({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// ExercisePicker — also used by workout + history routes
+// ─────────────────────────────────────────────
+
+export function ExercisePicker({
+  onClose,
+  onPick,
+}: {
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
+  const [q, setQ] = useState("");
+
+  const filtered = EXERCISES.filter((e) =>
+    e.name.toLowerCase().includes(q.toLowerCase()),
+  );
+
+  return (
+    <div
+      className="fixed inset-x-0 top-0 z-[60] flex justify-center bg-background"
+      style={{ bottom: `${BOTTOM_NAV_HEIGHT}px` }}
+    >
+      <div className="flex w-full max-w-md flex-col h-full">
+
+        <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <button onClick={onClose} className="p-2">
+            <X className="h-5 w-5" />
+          </button>
+
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search exercises..."
+            className="flex-1 rounded-lg bg-card px-3 py-2 outline-none"
+          />
+        </header>
+
+        <ul className="flex-1 overflow-y-auto">
+          {filtered.map((e) => (
+            <li key={e.id}>
+              <button
+                onClick={() => onPick(e.id)}
+                className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left hover:bg-card"
+              >
+                <div>
+                  <p className="font-medium">{e.name}</p>
+                  <p className="text-xs text-muted-foreground">{e.muscle}</p>
+                </div>
+                <Check className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </li>
+          ))}
+        </ul>
+
+      </div>
     </div>
   );
 }
