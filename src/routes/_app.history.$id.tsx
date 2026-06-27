@@ -27,9 +27,17 @@ type PRType = "weight" | "reps" | "time";
 async function savePR(exerciseId: string, type: PRType, value: number, workoutId?: number) {
   const db = getDb();
   const existing = await db.prHistory.where({ exerciseId, type }).toArray();
-  const best = existing.reduce((m, p) => Math.max(m, p.value), 0);
-  if (value > best) {
-    await db.prHistory.add({ exerciseId, type, value, workoutId, createdAt: Date.now() });
+  const previousBest = existing.reduce((m, p) => Math.max(m, p.value), 0);
+  if (value > previousBest) {
+    await db.prHistory.add({
+      exerciseId,
+      type,
+      value,
+      previousBest,
+      delta: value - previousBest,
+      workoutId,
+      createdAt: Date.now(),
+    });
     return true;
   }
   return false;

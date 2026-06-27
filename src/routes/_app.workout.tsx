@@ -160,19 +160,34 @@ function WorkoutPage() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Personal Records 🏆
             </h2>
-            <div className="rounded-xl bg-card px-4 py-3 flex flex-col gap-1">
+            <div className="rounded-xl bg-card px-4 py-3 flex flex-col gap-2">
               {summaryPRs.map((pr, i) => {
                 const def = getExercise(pr.exerciseId);
                 const name = def?.name ?? pr.exerciseId;
-                const typeLabel =
-                  pr.type === "weight" ? "New weight PR" :
-                  pr.type === "reps" ? "New reps PR" :
-                  "New duration PR";
+                const typeLabel = pr.type === "weight" ? "Weight" : pr.type === "reps" ? "Reps" : "Duration";
+                const fmt = (v: number) => pr.type === "time"
+                  ? (v >= 60 ? `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}` : `${v}s`)
+                  : pr.type === "weight" ? `${v}kg` : `${v}`;
+                // previousBest === 0 means first-ever PR (no prior record existed)
+                const isFirst = (pr.previousBest ?? 0) === 0;
                 return (
-                  <p key={i} className="text-sm">
-                    <span className="font-semibold">{name}</span>
-                    <span className="text-muted-foreground"> — {typeLabel}</span>
-                  </p>
+                  <div key={i} className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {typeLabel} •{" "}
+                        {isFirst
+                          ? <span className="text-primary">First PR ({fmt(pr.value)})</span>
+                          : <span>{fmt(pr.previousBest ?? 0)} → <span className="text-primary font-semibold">{fmt(pr.value)}</span></span>
+                        }
+                      </p>
+                    </div>
+                    {!isFirst && (
+                      <span className="shrink-0 text-xs text-primary font-semibold">
+                        +{fmt(pr.delta ?? pr.value)}
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -391,6 +406,8 @@ async function doSaveWorkout(
 
     // Write PRs now that workoutId is known — same logic as savePR in history edit
     const db = getDb();
+    // Track which exercise+type combos have already set a PR this session to avoid duplicates
+    const written = new Set<string>();
     for (const ex of exercises) {
       const def = getExercise(ex.exerciseId);
       if (!def) continue;
@@ -399,23 +416,35 @@ async function doSaveWorkout(
         if (!s.completed) continue;
         if (timeBased) {
           const d = s.duration ?? 0;
-          if (d > 0) {
+          const key = `${ex.exerciseId}:time`;
+          if (d > 0 && !written.has(key)) {
             const existing = await db.prHistory.where({ exerciseId: ex.exerciseId, type: "time" }).toArray();
             const best = existing.reduce((m, p) => Math.max(m, p.value), 0);
-            if (d > best) await db.prHistory.add({ exerciseId: ex.exerciseId, type: "time", value: d, workoutId, createdAt: Date.now() });
+            if (d > best) {
+              await db.prHistory.add({ exerciseId: ex.exerciseId, type: "time", value: d, previousBest: best, delta: d - best, workoutId, createdAt: Date.now() });
+              written.add(key);
+            }
           }
         } else {
           const w = s.weight ?? 0;
           const r = s.reps ?? 0;
-          if (w > 0) {
+          const wKey = `${ex.exerciseId}:weight`;
+          if (w > 0 && !written.has(wKey)) {
             const existing = await db.prHistory.where({ exerciseId: ex.exerciseId, type: "weight" }).toArray();
             const best = existing.reduce((m, p) => Math.max(m, p.value), 0);
-            if (w > best) await db.prHistory.add({ exerciseId: ex.exerciseId, type: "weight", value: w, workoutId, createdAt: Date.now() });
+            if (w > best) {
+              await db.prHistory.add({ exerciseId: ex.exerciseId, type: "weight", value: w, previousBest: best, delta: w - best, workoutId, createdAt: Date.now() });
+              written.add(wKey);
+            }
           }
-          if (r > 0) {
+          const rKey = `${ex.exerciseId}:reps`;
+          if (r > 0 && !written.has(rKey)) {
             const existing = await db.prHistory.where({ exerciseId: ex.exerciseId, type: "reps" }).toArray();
             const best = existing.reduce((m, p) => Math.max(m, p.value), 0);
-            if (r > best) await db.prHistory.add({ exerciseId: ex.exerciseId, type: "reps", value: r, workoutId, createdAt: Date.now() });
+            if (r > best) {
+              await db.prHistory.add({ exerciseId: ex.exerciseId, type: "reps", value: r, previousBest: best, delta: r - best, workoutId, createdAt: Date.now() });
+              written.add(rKey);
+            }
           }
         }
       }
