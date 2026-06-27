@@ -20,21 +20,23 @@ export const muscleIdToSvg: Record<number, string> = {
   16: "muscle-16.svg",
 };
 
-export const muscleNameToId: Partial<Record<MuscleGroup, number>> = {
+export const muscleNameToId: Record<string, number> = {
   Biceps: 1,
   Shoulders: 2,
+  Serratus: 3,
   Chest: 4,
   Triceps: 5,
   Abs: 6,
   Calves: 7,
   Glutes: 8,
   UpperBack: 9,
+  LowerBack: 9,
   Quads: 10,
   Hamstrings: 11,
   Lats: 12,
   Forearms: 13,
   Obliques: 14,
-  LowerBack: 9,
+  LowerCalves: 15,
 };
 
 /**
