@@ -1,4 +1,5 @@
 import type { MuscleGroup } from "@/lib/exercises";
+import { muscleNameToId } from "@/lib/muscles";
 
 import frontBase from "@/assets/muscles/base/muscular_system_front.svg";
 import backBase from "@/assets/muscles/base/muscular_system_back.svg";
@@ -52,24 +53,6 @@ const secSvgs: Record<number, string> = {
   9: sec9, 10: sec10, 11: sec11, 12: sec12, 13: sec13, 14: sec14, 15: sec15, 16: sec16,
 };
 
-const muscleIdMap: Record<string, number> = {
-  Shoulders: 2,
-  Chest: 4,
-  Biceps: 1,
-  Triceps: 5,
-  Abs: 6,
-  Calves: 7,
-  Glutes: 8,
-  UpperBack: 9,
-  Quads: 10,
-  Hamstrings: 11,
-  Lats: 12,
-  Serratus: 3,
-  Forearms: 13,
-  Obliques: 14,
-  LowerCalves: 15,
-};
-
 const ASPECT = "200 / 369";
 
 function Layer({ src, opacity }: { src: string; opacity: number }) {
@@ -100,7 +83,7 @@ function Panel({
   intensity: Partial<Record<MuscleGroup, number>>;
   activeMuscle?: MuscleGroup | null;
 }) {
-  const entries = Object.entries(muscleIdMap);
+  const entries = Object.entries(muscleNameToId);
 
   return (
     <div
