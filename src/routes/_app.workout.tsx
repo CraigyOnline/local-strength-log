@@ -110,6 +110,46 @@ function WorkoutPage() {
           exercises={summary.exercises}
           showName
         />
+
+        <div className="flex flex-col gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            What you did
+          </h2>
+          {summary.exercises.map((ex, ei) => {
+            const def = getExercise(ex.exerciseId);
+            const timeBased = isTimeBased(def);
+            const completedSets = ex.sets.filter((s) => s.completed);
+            if (completedSets.length === 0) return null;
+            return (
+              <div key={ei} className="rounded-xl bg-card px-4 py-3">
+                <p className="font-semibold text-sm">{def?.name ?? ex.exerciseId}</p>
+                <ul className="mt-1 flex flex-col gap-0.5">
+                  {completedSets.map((s, si) => {
+                    let label: string;
+                    if (timeBased) {
+                      const d = s.duration ?? 0;
+                      const m = Math.floor(d / 60);
+                      const sec = d % 60;
+                      label = m > 0
+                        ? `Set ${si + 1}: ${m}:${String(sec).padStart(2, "0")}`
+                        : `Set ${si + 1}: ${sec}s`;
+                    } else if (def?.equipment === "Bodyweight") {
+                      label = `Set ${si + 1}: ${s.reps ?? 0} reps`;
+                    } else {
+                      label = `Set ${si + 1}: ${s.weight ?? 0}kg × ${s.reps ?? 0}`;
+                    }
+                    return (
+                      <li key={si} className="text-xs text-muted-foreground tabular-nums">
+                        {label}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+
         <Button
           onClick={() => {
             setSummary(null);
