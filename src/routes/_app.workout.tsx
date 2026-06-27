@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import {
   getDb,
@@ -323,7 +323,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
     [],
   ) as Workout[] | undefined;
 
-  const previousByExercise = (() => {
+  const previousByExercise = useMemo(() => {
     const map = new Map<string, WorkoutSet[]>();
     if (!allWorkouts) return map;
     for (const w of allWorkouts) {
@@ -335,7 +335,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
       }
     }
     return map;
-  })();
+  }, [allWorkouts, session.startedAt]);
 
   function formatPrevSet(s: WorkoutSet, timeBased: boolean): string {
     if (timeBased) {
