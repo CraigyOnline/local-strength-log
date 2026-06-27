@@ -20,7 +20,10 @@ export const muscleIdToSvg: Record<number, string> = {
   16: "muscle-16.svg",
 };
 
-export const muscleNameToId: Record<string, number> = {
+/** Extends MuscleGroup with SVG-layer-only muscles that have no exercise data. */
+type RenderMuscle = MuscleGroup | "Serratus" | "LowerCalves";
+
+export const muscleNameToId: Record<RenderMuscle, number> = {
   Biceps: 1,
   Shoulders: 2,
   Serratus: 3,
