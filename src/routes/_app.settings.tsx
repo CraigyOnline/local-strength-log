@@ -162,11 +162,9 @@ function SettingsPage() {
       const db = getDb();
       await db.transaction("rw", db.routines, db.workouts, db.prHistory, async () => {
         await Promise.all([db.routines.clear(), db.workouts.clear(), db.prHistory.clear()]);
-        await db.routines.bulkAdd(payload.routines.map(({ id: _i, ...r }) => r) as Routine[]);
-        await db.workouts.bulkAdd(payload.workouts.map(({ id: _i, ...w }) => w) as Workout[]);
-        await db.prHistory.bulkAdd(
-          payload.prHistory.map(({ id: _i, ...p }) => p) as PRRecord[]
-        );
+        await db.routines.bulkPut(payload.routines);
+        await db.workouts.bulkPut(payload.workouts);
+        await db.prHistory.bulkPut(payload.prHistory);
       });
       toast.success("Data replaced from backup");
     } catch (err) {
