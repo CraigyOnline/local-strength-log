@@ -94,25 +94,6 @@ function HistoryDetailPage() {
 
   const view = editing && draft ? draft : workout;
 
-  // ── Volume: skip bodyweight & cardio sets (weight × reps is meaningless) ──
-  const totalVolume = view.exercises.reduce((a, ex) => {
-    const def = getExercise(ex.exerciseId);
-    const isBodyweight = def?.equipment === "Bodyweight";
-    const isCardio = def?.equipment === "Cardio";
-    if (isBodyweight || isCardio) return a;
-    return (
-      a +
-      ex.sets
-        .filter((s) => s.completed)
-        .reduce((x, s) => x + (s.weight ?? 0) * (s.reps ?? 0), 0)
-    );
-  }, 0);
-
-  const totalSets = view.exercises.reduce(
-    (a, e) => a + e.sets.filter((s) => s.completed).length,
-    0,
-  );
-
   function startEdit() {
     setDraft(JSON.parse(JSON.stringify(workout)));
     setEditing(true);

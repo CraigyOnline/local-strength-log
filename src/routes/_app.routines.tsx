@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDb, type Routine } from "@/lib/db";
 import { EXERCISES, getExercise } from "@/lib/exercises";
 import { Plus, Pencil, Trash2, X, Check, ArrowUp, ArrowDown, Pin } from "lucide-react";
