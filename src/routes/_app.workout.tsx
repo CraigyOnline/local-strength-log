@@ -8,6 +8,7 @@ import {
   type Workout,
   type WorkoutExerciseLog,
   type WorkoutSet,
+  type PRRecord,
 } from "@/lib/db";
 import { getExercise, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
@@ -69,6 +70,10 @@ function WorkoutPage() {
   const [active, setActive] = useState<ActiveSession | null>(null);
   const [picking, setPicking] = useState(false);
   const [summary, setSummary] = useState<Workout | null>(null);
+  const summaryPRs = useLiveQuery(async () => {
+    if (typeof window === "undefined" || !summary?.id) return [];
+    return getDb().prHistory.where("workoutId").equals(summary.id).toArray();
+  }, [summary?.id]) as PRRecord[] | undefined;
 
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [saveErrorDialogOpen, setSaveErrorDialogOpen] = useState(false);
@@ -149,6 +154,30 @@ function WorkoutPage() {
             );
           })}
         </div>
+
+        {summaryPRs && summaryPRs.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Personal Records 🏆
+            </h2>
+            <div className="rounded-xl bg-card px-4 py-3 flex flex-col gap-1">
+              {summaryPRs.map((pr, i) => {
+                const def = getExercise(pr.exerciseId);
+                const name = def?.name ?? pr.exerciseId;
+                const typeLabel =
+                  pr.type === "weight" ? "New weight PR" :
+                  pr.type === "reps" ? "New reps PR" :
+                  "New duration PR";
+                return (
+                  <p key={i} className="text-sm">
+                    <span className="font-semibold">{name}</span>
+                    <span className="text-muted-foreground"> — {typeLabel}</span>
+                  </p>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <Button
           onClick={() => {
@@ -358,8 +387,42 @@ async function doSaveWorkout(
   };
   try {
     const savedId = await getDb().workouts.add(workout);
+    const workoutId = savedId as number;
+
+    // Write PRs now that workoutId is known — same logic as savePR in history edit
+    const db = getDb();
+    for (const ex of exercises) {
+      const def = getExercise(ex.exerciseId);
+      if (!def) continue;
+      const timeBased = isTimeBased(def);
+      for (const s of ex.sets) {
+        if (!s.completed) continue;
+        if (timeBased) {
+          const d = s.duration ?? 0;
+          if (d > 0) {
+            const existing = await db.prHistory.where({ exerciseId: ex.exerciseId, type: "time" }).toArray();
+            const best = existing.reduce((m, p) => Math.max(m, p.value), 0);
+            if (d > best) await db.prHistory.add({ exerciseId: ex.exerciseId, type: "time", value: d, workoutId, createdAt: Date.now() });
+          }
+        } else {
+          const w = s.weight ?? 0;
+          const r = s.reps ?? 0;
+          if (w > 0) {
+            const existing = await db.prHistory.where({ exerciseId: ex.exerciseId, type: "weight" }).toArray();
+            const best = existing.reduce((m, p) => Math.max(m, p.value), 0);
+            if (w > best) await db.prHistory.add({ exerciseId: ex.exerciseId, type: "weight", value: w, workoutId, createdAt: Date.now() });
+          }
+          if (r > 0) {
+            const existing = await db.prHistory.where({ exerciseId: ex.exerciseId, type: "reps" }).toArray();
+            const best = existing.reduce((m, p) => Math.max(m, p.value), 0);
+            if (r > best) await db.prHistory.add({ exerciseId: ex.exerciseId, type: "reps", value: r, workoutId, createdAt: Date.now() });
+          }
+        }
+      }
+    }
+
     setActive(null);
-    setSummary({ ...workout, id: savedId as number });
+    setSummary({ ...workout, id: workoutId });
   } catch (err) {
     console.error("Failed to save workout", err);
     setSaveErrorDialogOpen(true);
