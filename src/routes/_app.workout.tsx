@@ -73,6 +73,7 @@ function WorkoutPage() {
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [saveErrorDialogOpen, setSaveErrorDialogOpen] = useState(false);
   const [pendingFinishExercises, setPendingFinishExercises] = useState<WorkoutExerciseLog[] | null>(null);
+  const [cancelPending, setCancelPending] = useState(false);
 
   useEffect(() => {
     if (active || !routineId || !routines) return;
@@ -195,9 +196,23 @@ function WorkoutPage() {
             return;
           }
 
+          const hasData = active.exercises.some((e) =>
+            e.sets.some(
+              (s) =>
+                s.completed ||
+                (Number(s.weight) || 0) > 0 ||
+                (Number(s.reps) || 0) > 0 ||
+                (Number(s.duration) || 0) > 0,
+            ),
+          );
+          if (hasData) {
+            setCancelPending(true);
+            setDiscardDialogOpen(true);
+            return;
+          }
           setPendingFinishExercises(null);
           setActive(null);
-          navigate({ to: "/history" });
+          navigate({ to: "/workout" });
         }}
       />
       {picking && (
@@ -217,25 +232,43 @@ function WorkoutPage() {
         />
       )}
 
-      {/* Empty workout — discard confirmation */}
-      <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+      {/* Discard confirmation — empty finish or cancel with data */}
+      <AlertDialog
+        open={discardDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelPending(false);
+            setDiscardDialogOpen(false);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Discard empty workout?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {cancelPending ? "Discard workout?" : "Discard empty workout?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              No sets were completed. Discard this session without saving?
+              {cancelPending
+                ? "You have unsaved progress. Discard this session without saving?"
+                : "No sets were completed. Discard this session without saving?"}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingFinishExercises(null)}>
+            <AlertDialogCancel
+              onClick={() => {
+                setCancelPending(false);
+                setPendingFinishExercises(null);
+              }}
+            >
               Keep going
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setDiscardDialogOpen(false);
+                setCancelPending(false);
                 setPendingFinishExercises(null);
                 setActive(null);
-                navigate({ to: "/history" });
+                navigate({ to: "/workout" });
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
