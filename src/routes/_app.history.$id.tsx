@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Check, Trash2, X, Pencil, Save } from "lucide-react";
-import { getDb, type Workout, type WorkoutExerciseLog } from "@/lib/db";
+import { getDb, type Workout, type WorkoutExerciseLog, type PRRecord } from "@/lib/db";
 import { getExercise, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,11 @@ function HistoryDetailPage() {
   const navigate = useNavigate();
 
   const [workout, setWorkout] = useState<Workout | null | undefined>(undefined);
+
+  const workoutPRs = useLiveQuery(async () => {
+    if (typeof window === "undefined" || !workout?.id) return [];
+    return getDb().prHistory.where("workoutId").equals(workout.id).toArray();
+  }, [workout?.id]) as PRRecord[] | undefined;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Workout | null>(null);
   const [picking, setPicking] = useState(false);
@@ -285,6 +291,40 @@ function HistoryDetailPage() {
       </header>
 
       <WorkoutSummary durationSec={view.durationSec} exercises={view.exercises} />
+
+      {workoutPRs && workoutPRs.length > 0 && (
+        <div className="rounded-xl bg-card p-4 flex flex-col gap-2">
+          <h2 className="text-sm font-semibold">Personal Records 🏆</h2>
+          {workoutPRs.map((pr, i) => {
+            const def = getExercise(pr.exerciseId);
+            const name = def?.name ?? pr.exerciseId;
+            const typeLabel = pr.type === "weight" ? "Weight" : pr.type === "reps" ? "Reps" : "Duration";
+            const fmt = (v: number) => pr.type === "time"
+              ? (v >= 60 ? `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}` : `${v}s`)
+              : pr.type === "weight" ? `${v}kg` : `${v}`;
+            const isFirst = (pr.previousBest ?? 0) === 0;
+            return (
+              <div key={i} className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {typeLabel} •{" "}
+                    {isFirst
+                      ? <span className="text-primary">First PR ({fmt(pr.value)})</span>
+                      : <span>{fmt(pr.previousBest ?? 0)} → <span className="text-primary font-semibold">{fmt(pr.value)}</span></span>
+                    }
+                  </p>
+                </div>
+                {!isFirst && (
+                  <span className="shrink-0 text-xs font-semibold text-primary">
+                    +{fmt(pr.delta ?? (pr.value - (pr.previousBest ?? 0)))}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {view.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);

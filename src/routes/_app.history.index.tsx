@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
-import { getDb, type Workout } from "@/lib/db";
+import { getDb, type Workout, type PRRecord } from "@/lib/db";
 import { getExercise } from "@/lib/exercises";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,26 @@ function HistoryList() {
     [],
   ) as Workout[] | undefined;
 
+  // Single query for all PR records — grouped in memory, avoids N queries per card
+  const allPRs = useLiveQuery(
+    () =>
+      typeof window === "undefined"
+        ? Promise.resolve<PRRecord[]>([])
+        : getDb().prHistory.toArray(),
+    [],
+  ) as PRRecord[] | undefined;
+
+  // Map workoutId → PR count
+  const prCountByWorkout = (() => {
+    const map = new Map<number, number>();
+    if (!allPRs) return map;
+    for (const pr of allPRs) {
+      if (pr.workoutId == null) continue;
+      map.set(pr.workoutId, (map.get(pr.workoutId) ?? 0) + 1);
+    }
+    return map;
+  })();
+
   async function remove(workout: Workout) {
     if (!workout.id) return;
     await getDb().workouts.delete(workout.id);
@@ -56,7 +76,6 @@ function HistoryList() {
             0,
           );
 
-          // Volume: skip bodyweight & cardio — weight × reps is meaningless for those
           const totalVolume = w.exercises.reduce((sum, ex) => {
             const def = getExercise(ex.exerciseId);
             if (def?.equipment === "Bodyweight" || def?.equipment === "Cardio") return sum;
@@ -65,6 +84,8 @@ function HistoryList() {
               ex.sets.reduce((s, set) => s + (set.weight ?? 0) * (set.reps ?? 0), 0)
             );
           }, 0);
+
+          const prCount = w.id != null ? (prCountByWorkout.get(w.id) ?? 0) : 0;
 
           return (
             <li
@@ -89,7 +110,7 @@ function HistoryList() {
                     </p>
                   )}
 
-                  <div className="mt-2 flex flex-wrap gap-1">
+                  <div className="mt-2 flex flex-wrap items-center gap-1">
                     {w.exercises.slice(0, 5).map((e, i) => (
                       <span
                         key={i}
@@ -103,10 +124,14 @@ function HistoryList() {
                         +{w.exercises.length - 5}
                       </span>
                     )}
+                    {prCount > 0 && (
+                      <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        🏆 {prCount} {prCount === 1 ? "PR" : "PRs"}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Fix #11: 44px tap target for delete */}
                 <button
                   onClick={(ev) => {
                     ev.stopPropagation();
