@@ -84,9 +84,8 @@ function RoutinesPage() {
     if (!undo) return;
     clearTimeout(undo.timeoutId);
 
-    // Re-insert without the old id so Dexie auto-assigns a new one
-    const { id: _id, ...rest } = undo.routine;
-    await getDb().routines.add(rest as Routine);
+    // Re-insert with the original id so workout → routine relationships are preserved
+    await getDb().routines.put(undo.routine);
 
     setUndo(null);
     setUndoTimeLeft(5);
@@ -205,7 +204,6 @@ function RoutinesPage() {
                       <Pencil className="h-4 w-4" />
                     </button>
 
-                    {/* DELETE — now shows undo toast instead of immediate delete */}
                     <button
                       onClick={() => deleteRoutine(r)}
                       className="rounded-md p-2 text-destructive hover:bg-secondary"
