@@ -5,9 +5,7 @@ import Dexie, { type Table } from "dexie";
  */
 export interface RoutineExercise {
   exerciseId: string;
-
   sets: number;
-
   targetWeight?: number;
   targetReps?: number;
   targetDuration?: number;
@@ -25,15 +23,10 @@ export interface Routine {
  * WORKOUTS
  */
 export interface WorkoutSet {
-  // stable identity for undo / list reconciliation
   id?: string;
-
   weight: number;
   reps: number;
-
-  // time-based support (planks, holds, etc.)
   duration?: number;
-
   completed: boolean;
 }
 
@@ -60,10 +53,11 @@ export interface PRRecord {
   exerciseId: string;
   type: "weight" | "reps" | "time";
   value: number;
-
-  // link to workout where PR happened
+  /** Previous best before this PR. 0 for the first-ever PR of this exercise+type. */
+  previousBest: number;
+  /** Improvement over the previous best. Equals value for the first-ever PR. */
+  delta: number;
   workoutId?: number;
-
   createdAt: number;
 }
 
@@ -84,8 +78,6 @@ export class AppDB extends Dexie {
       prHistory: "++id, exerciseId, type, value, workoutId, createdAt",
     });
 
-    // Version 4: adds `pinned` index to routines.
-    // Existing rows have pinned explicitly set to false via upgrade().
     this.version(4)
       .stores({
         routines: "++id, name, createdAt, pinned",
@@ -102,6 +94,7 @@ export class AppDB extends Dexie {
             }
           });
       });
+
   }
 }
 
