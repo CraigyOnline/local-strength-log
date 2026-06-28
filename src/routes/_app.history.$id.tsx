@@ -54,10 +54,10 @@ function HistoryDetailPage() {
     if (typeof window === "undefined" || !workout?.id) return [];
     return getDb().prHistory.where("workoutId").equals(workout.id).toArray();
   }, [workout?.id]) as PRRecord[] | undefined;
+
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Workout | null>(null);
   const [picking, setPicking] = useState(false);
-
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // ── Undo state ───────────────────────────────────────────────────────
@@ -113,12 +113,29 @@ function HistoryDetailPage() {
     setEditing(true);
   }
 
+  // PRs are written only here, on explicit save — not on every keystroke
   async function save() {
     if (!draft?.id) return;
     await getDb().workouts.update(draft.id, {
       name: draft.name,
       exercises: draft.exercises,
     });
+
+    const wid = draft.id;
+    for (const ex of draft.exercises) {
+      const def = getExercise(ex.exerciseId);
+      if (!def) continue;
+      for (const s of ex.sets) {
+        if (!s.completed) continue;
+        if (isTimeBased(def)) {
+          if ((s.duration ?? 0) > 0) await savePR(ex.exerciseId, "time", s.duration ?? 0, wid);
+        } else {
+          if ((s.weight ?? 0) > 0) await savePR(ex.exerciseId, "weight", s.weight ?? 0, wid);
+          if ((s.reps ?? 0) > 0) await savePR(ex.exerciseId, "reps", s.reps ?? 0, wid);
+        }
+      }
+    }
+
     setWorkout(draft);
     setEditing(false);
   }
@@ -166,29 +183,12 @@ function HistoryDetailPage() {
     setTimeLeft(3);
   }
 
-  function checkPR(
-    exerciseId: string,
-    set: { weight?: number; reps?: number; duration?: number },
-  ) {
-    const def = getExercise(exerciseId);
-    if (!def) return;
-    const wid = workout?.id;
-    if (isTimeBased(def)) {
-      if ((set.duration ?? 0) > 0) savePR(exerciseId, "time", set.duration ?? 0, wid);
-    } else {
-      if ((set.weight ?? 0) > 0) savePR(exerciseId, "weight", set.weight ?? 0, wid);
-      if ((set.reps ?? 0) > 0) savePR(exerciseId, "reps", set.reps ?? 0, wid);
-    }
-  }
-
   function patchSet(
     ei: number,
     si: number,
     p: Partial<{ weight: number; reps: number; duration: number; completed: boolean }>,
   ) {
     if (!draft) return;
-    const exerciseId = draft.exercises[ei].exerciseId;
-    const mergedSet = { ...draft.exercises[ei].sets[si], ...p };
     setDraft((d) => {
       if (!d) return d;
       return {
@@ -203,7 +203,6 @@ function HistoryDetailPage() {
         ),
       };
     });
-    checkPR(exerciseId, mergedSet);
   }
 
   function addSet(ei: number) {
@@ -508,7 +507,6 @@ function HistoryDetailPage() {
         <ExercisePicker onClose={() => setPicking(false)} onPick={addExercise} />
       )}
 
-      {/* Set-level undo toast */}
       {undo && (
         <div className="fixed bottom-4 left-4 right-4 z-[9999] mx-auto flex max-w-md items-center justify-between rounded-lg bg-black px-4 py-3 text-white shadow-lg pointer-events-auto">
           <span className="text-sm">Set deleted — Undo in {timeLeft}s</span>
@@ -521,7 +519,6 @@ function HistoryDetailPage() {
         </div>
       )}
 
-      {/* Delete workout */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
