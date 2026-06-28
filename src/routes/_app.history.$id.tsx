@@ -335,7 +335,17 @@ function HistoryDetailPage() {
           <div key={ei} className="rounded-xl bg-card p-4">
             <div className="flex justify-between">
               <div>
-                <p className="font-semibold">{def?.name || "Unknown Exercise"}</p>
+                {editing ? (
+                  <p className="font-semibold">{def?.name || "Unknown Exercise"}</p>
+                ) : (
+                  <Link
+                    to="/exercise/$id"
+                    params={{ id: ex.exerciseId }}
+                    className="font-semibold hover:text-primary transition-colors"
+                  >
+                    {def?.name || "Unknown Exercise"}
+                  </Link>
+                )}
                 <p className="text-xs text-muted-foreground">{def?.muscle}</p>
               </div>
               {editing && (
