@@ -17,6 +17,7 @@ import { Route as AppRoutinesRouteImport } from './routes/_app.routines'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppHistoryRouteImport } from './routes/_app.history'
 import { Route as AppHistoryIdRouteImport } from './routes/_app.history.$id'
+import { Route as AppExerciseIdRouteImport } from './routes/_app.exercise.$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -57,6 +58,11 @@ const AppHistoryIdRoute = AppHistoryIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppHistoryRoute,
 } as any)
+const AppExerciseIdRoute = AppExerciseIdRouteImport.update({
+  id: '/exercise/$id',
+  path: '/exercise/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/workout': typeof AppWorkoutRoute
   '/history/$id': typeof AppHistoryIdRoute
+  '/exercise/$id': typeof AppExerciseIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/workout': typeof AppWorkoutRoute
   '/history/$id': typeof AppHistoryIdRoute
+  '/exercise/$id': typeof AppExerciseIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/workout': typeof AppWorkoutRoute
   '/_app/history/$id': typeof AppHistoryIdRoute
+  '/_app/exercise/$id': typeof AppExerciseIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/workout'
     | '/history/$id'
+    | '/exercise/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/workout'
     | '/history/$id'
+    | '/exercise/$id'
   id:
     | '__root__'
     | '/'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/workout'
     | '/_app/history/$id'
+    | '/_app/exercise/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -181,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHistoryIdRouteImport
       parentRoute: typeof AppHistoryRoute
     }
+    '/_app/exercise/$id': {
+      id: '/_app/exercise/$id'
+      path: '/exercise/$id'
+      fullPath: '/exercise/$id'
+      preLoaderRoute: typeof AppExerciseIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -202,6 +221,7 @@ interface AppRouteChildren {
   AppRoutinesRoute: typeof AppRoutinesRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppWorkoutRoute: typeof AppWorkoutRoute
+  AppExerciseIdRoute: typeof AppExerciseIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -210,6 +230,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRoutinesRoute: AppRoutinesRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppWorkoutRoute: AppWorkoutRoute,
+  AppExerciseIdRoute: AppExerciseIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
