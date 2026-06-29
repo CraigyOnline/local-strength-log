@@ -1,3 +1,7 @@
+AI slop - Workout tracker inspired by hevy and wger.
+No social features, open source, no limits on history and other features. Made for my personal use.
+Very early days 
+
 ## 📋 Wishlist
 - [ ] Add body heat map to workouts
 - [ ] When creating a workout and adding an exercise, you should be able to filter to a muscle group
