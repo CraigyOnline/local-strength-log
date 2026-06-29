@@ -20,21 +20,18 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
 
-    # 1. Install Bun in the GitHub runner
     - name: Set up Bun
       uses: oven-sh/setup-bun@v2
       with:
         bun-version: latest
 
-    # 2. Use Bun to install your dependencies cleanly
+    # Removed --frozen-lockfile to allow Bun to safely build the environment
     - name: Install Dependencies
-      run: bun install --frozen-lockfile
+      run: bun install
 
-    # 3. Compile your web project using Bun
     - name: Build Web Application
       run: bun run build
 
-    # 4. Use bunx instead of npx to execute Capacitor commands
     - name: Install Capacitor Tooling
       run: bun add @capacitor/core @capacitor/cli @capacitor/android
 
