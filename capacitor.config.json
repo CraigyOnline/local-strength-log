@@ -1,5 +1,11 @@
 {
   "appId": "com.untrainedeffort.app",
   "appName": "Untrained Effort",
-  "webDir": "dist/client"
+  "webDir": "dist/client",
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": false,
+      "style": "DARK"
+    }
+  }
 }
