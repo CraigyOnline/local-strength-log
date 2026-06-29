@@ -81,23 +81,22 @@ function SettingsPage() {
 
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `untrained-effort-backup-${stamp}.json`;
-      const json = JSON.stringify(payload, null, 2);
-      const blob = new Blob([json], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
 
-      // Use the native share sheet on Android/iOS (Web Share API level 2).
-      // This opens the system chooser so the user can save to Files, Drive,
-      // send via email, etc. Falls back to the anchor-download method for
-      // desktop browsers that don't support navigator.share with files.
+      // Use the native Android/iOS share sheet (Web Share API Level 2).
+      // This lets the user choose where to save or share the file.
+      // Falls back to anchor-download on desktop browsers.
+      const file = new File([blob], filename, { type: "application/json" });
       if (
         typeof navigator.share === "function" &&
         typeof navigator.canShare === "function" &&
-        navigator.canShare({ files: [new File([blob], filename, { type: "application/json" })] })
+        navigator.canShare({ files: [file] })
       ) {
-        const file = new File([blob], filename, { type: "application/json" });
         await navigator.share({ files: [file], title: filename });
-        toast.success("Backup ready to save", { duration: 4000 });
+        toast.success("Backup exported", { duration: 4000 });
       } else {
-        // Desktop fallback: anchor download
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -109,7 +108,6 @@ function SettingsPage() {
         toast.success("Backup downloaded", { duration: 4000 });
       }
     } catch (err) {
-      // navigator.share throws AbortError if the user cancels — that is not an error.
       if (err instanceof Error && err.name === "AbortError") return;
       console.error(err);
       toast.error("Export failed", { duration: 4000 });
@@ -130,11 +128,11 @@ function SettingsPage() {
       const text = await file.text();
       const parsed = JSON.parse(text);
       if (!isBackupPayload(parsed)) {
-        toast.error("Invalid backup file", { duration: 4000 });
+        toast.error("Invalid backup file");
         return;
       }
       if (parsed.schemaVersion !== SCHEMA_VERSION) {
-        toast.error(`Unsupported schema version: ${parsed.schemaVersion}`, { duration: 4000 });
+        toast.error(`Unsupported schema version: ${parsed.schemaVersion}`);
         return;
       }
 
@@ -145,7 +143,7 @@ function SettingsPage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Could not read backup file", { duration: 4000 });
+      toast.error("Could not read backup file");
     }
   }
 
@@ -167,12 +165,11 @@ function SettingsPage() {
         }
       });
       toast.success(
-        `Merged ${payload.routines.length} routines, ${payload.workouts.length} workouts`,
-        { duration: 4000 }
+        `Merged ${payload.routines.length} routines, ${payload.workouts.length} workouts`
       );
     } catch (err) {
       console.error(err);
-      toast.error("Merge import failed", { duration: 4000 });
+      toast.error("Merge import failed");
     }
   }
 
@@ -185,10 +182,10 @@ function SettingsPage() {
         await db.workouts.bulkPut(payload.workouts);
         await db.prHistory.bulkPut(payload.prHistory);
       });
-      toast.success("Data replaced from backup", { duration: 4000 });
+      toast.success("Data replaced from backup");
     } catch (err) {
       console.error(err);
-      toast.error("Replace import failed", { duration: 4000 });
+      toast.error("Replace import failed");
     } finally {
       setPendingReplace(null);
     }
