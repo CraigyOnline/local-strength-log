@@ -14,4 +14,5 @@ Very early days
 - [ ] App renders under clock and status at top of screen
 - [ ] When typing in a field e.g. for sets, unable to delete the current digit until other value entered then you can scroll back and remove it
 - [ ] The muscle map has a front and back view. Currently the muscles are rendered in duplicate on both sides rather than just their side
-- [ ] 
+- [ ] Backup says exported... but where to?
+- [ ] Backup exported toast doesn't disappear after backup
