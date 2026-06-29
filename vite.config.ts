@@ -1,15 +1,41 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, nitro (build-only using cloudflare as a default target),
-//     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
-//     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { defineConfig } from "vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import tsconfigPaths from "vite-tsconfig-paths";
+
+// Replaces @lovable.dev/vite-tanstack-config with direct plugin calls.
+// Each plugin maps to one feature the Lovable wrapper provided:
+//
+//   tanstackStart  — SSR dev server, HTML injection, shellComponent, file-based
+//                    routing codegen (includes @tanstack/router-plugin internally)
+//   react()        — JSX transform
+//   tailwindcss()  — Tailwind v4 CSS processing
+//   tsconfigPaths  — resolves @/* to src/*
+//
+// Intentionally omitted (Lovable-only, not needed outside the editor):
+//   - componentTagger      (visual editor overlay)
+//   - VITE_* env injection (no import.meta.env usage exists in this codebase)
+//   - sandbox port/host    (Lovable iframe detection)
+//   - error logger plugin  (build-time Lovable editor integration)
+//
+// Nitro / cloudflare Worker build is kept via tanstackStart's default behaviour.
+// src/server.ts is still the server entry, passed via the server option below.
+// Nothing about the running application changes in this commit.
 
 export default defineConfig({
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
+  plugins: [
+    tanstackStart({
+      // Keep identical to what the Lovable wrapper was passing:
+      // points TanStack Start's Nitro build at src/server.ts
+      server: { entry: "server" },
+    }),
+    react(),
+    tailwindcss(),
+    tsconfigPaths(),
+  ],
+  resolve: {
+    // Prevent duplicate React/router instances — previously handled by the wrapper.
+    dedupe: ["react", "react-dom", "@tanstack/react-router"],
   },
 });
