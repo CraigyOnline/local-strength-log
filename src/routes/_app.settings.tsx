@@ -81,26 +81,35 @@ function SettingsPage() {
 
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `untrained-effort-backup-${stamp}.json`;
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: "application/json",
-      });
-      const file = new File([blob], filename, { type: "application/json" });
+      const json = JSON.stringify(payload, null, 2);
 
-      // Android WebView ignores the <a download> pattern silently.
-      // navigator.share() with a File opens the native Android share/save sheet
-      // (Web Share API Level 2, supported in Chromium WebView on Android 10+).
-      // The toast only fires after the user has successfully interacted with the
-      // sheet — navigator.share() resolves when the user completes the action.
-      // If the user dismisses the sheet, it throws AbortError which we ignore.
-      if (
-        typeof navigator.share === "function" &&
-        typeof navigator.canShare === "function" &&
-        navigator.canShare({ files: [file] })
-      ) {
-        await navigator.share({ files: [file], title: filename });
+      // Capacitor WebView does not support the <a download> attribute or
+      // navigator.share({ files }) reliably. Use @capacitor/share which
+      // writes the file to the app cache directory then opens the native
+      // Android share/save sheet — the only approach that works in a WebView.
+      // Falls back to anchor-download when running in a desktop browser.
+      const { Capacitor } = await import("@capacitor/core");
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import("@capacitor/filesystem");
+        const { Share } = await import("@capacitor/share");
+
+        // Write to cache dir (no permission needed on Android)
+        const writeResult = await Filesystem.writeFile({
+          path: filename,
+          data: json,
+          directory: Directory.Cache,
+          encoding: "utf8" as never,
+        });
+
+        await Share.share({
+          title: filename,
+          url: writeResult.uri,
+          dialogTitle: "Save or share backup",
+        });
         toast.success("Backup exported");
       } else {
-        // Desktop browser fallback only — does not run on Android WebView.
+        // Desktop browser fallback
+        const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
