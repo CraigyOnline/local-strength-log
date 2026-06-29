@@ -84,19 +84,23 @@ function SettingsPage() {
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
       });
-
-      // Use the native Android/iOS share sheet (Web Share API Level 2).
-      // This lets the user choose where to save or share the file.
-      // Falls back to anchor-download on desktop browsers.
       const file = new File([blob], filename, { type: "application/json" });
+
+      // Android WebView ignores the <a download> pattern silently.
+      // navigator.share() with a File opens the native Android share/save sheet
+      // (Web Share API Level 2, supported in Chromium WebView on Android 10+).
+      // The toast only fires after the user has successfully interacted with the
+      // sheet — navigator.share() resolves when the user completes the action.
+      // If the user dismisses the sheet, it throws AbortError which we ignore.
       if (
         typeof navigator.share === "function" &&
         typeof navigator.canShare === "function" &&
         navigator.canShare({ files: [file] })
       ) {
         await navigator.share({ files: [file], title: filename });
-        toast.success("Backup exported", { duration: 4000 });
+        toast.success("Backup exported");
       } else {
+        // Desktop browser fallback only — does not run on Android WebView.
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -105,12 +109,12 @@ function SettingsPage() {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        toast.success("Backup downloaded", { duration: 4000 });
+        toast.success("Backup downloaded");
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
       console.error(err);
-      toast.error("Export failed", { duration: 4000 });
+      toast.error("Export failed");
     }
   }
 
