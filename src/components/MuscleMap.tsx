@@ -53,6 +53,13 @@ const secSvgs: Record<number, string> = {
   9: sec9, 10: sec10, 11: sec11, 12: sec12, 13: sec13, 14: sec14, 15: sec15, 16: sec16,
 };
 
+// Muscle IDs from the wger project SVG set.
+// Each ID corresponds to a layer that is positioned for one specific body view.
+// Rendering a front-only layer on the back panel (or vice versa) causes the
+// duplicate-highlight bug. Panels only render the IDs belonging to their view.
+const FRONT_IDS = new Set([1, 2, 3, 4, 6, 10, 13, 14]);
+const BACK_IDS  = new Set([5, 7, 8, 9, 11, 12, 15, 16]);
+
 const ASPECT = "200 / 369";
 
 function Layer({ src, opacity }: { src: string; opacity: number }) {
@@ -76,14 +83,17 @@ function Layer({ src, opacity }: { src: string; opacity: number }) {
 
 function Panel({
   base,
+  view,
   intensity,
   activeMuscle,
 }: {
   base: string;
+  view: "front" | "back";
   intensity: Partial<Record<MuscleGroup, number>>;
   activeMuscle?: MuscleGroup | null;
 }) {
-  const entries = Object.entries(muscleNameToId);
+  const allowedIds = view === "front" ? FRONT_IDS : BACK_IDS;
+  const entries = Object.entries(muscleNameToId) as [string, number][];
 
   return (
     <div
@@ -106,6 +116,9 @@ function Panel({
         }}
       />
       {entries.map(([muscle, id]) => {
+        // Skip muscles whose SVG layer belongs to the other view
+        if (!allowedIds.has(id)) return null;
+
         const raw = intensity[muscle as MuscleGroup];
         const hasIntensity = typeof raw === "number" && raw > 0;
         const v = Math.max(0, Math.min(1, raw ?? 0));
@@ -145,8 +158,8 @@ export function MuscleMap({
         alignItems: "flex-start",
       }}
     >
-      <Panel base={frontBase} intensity={intensity} activeMuscle={activeMuscle} />
-      <Panel base={backBase} intensity={intensity} activeMuscle={activeMuscle} />
+      <Panel base={frontBase} view="front" intensity={intensity} activeMuscle={activeMuscle} />
+      <Panel base={backBase}  view="back"  intensity={intensity} activeMuscle={activeMuscle} />
     </div>
   );
 }
