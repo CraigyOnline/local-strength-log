@@ -33,7 +33,7 @@ jobs:
       run: bun run build
 
     - name: Install Capacitor Tooling
-      run: bun add @capacitor/core @capacitor/cli @capacitor/android @capacitor/filesystem @capacitor/share
+      run: bun add @capacitor/cli @capacitor/android
 
     - name: Ensure Android Platform Exists
       run: |
