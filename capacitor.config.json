@@ -2,9 +2,11 @@
   "appId": "com.untrainedeffort.app",
   "appName": "Untrained Effort",
   "webDir": "dist/client",
+  "android": {
+    "adjustMarginsForEdgeToEdge": "auto"
+  },
   "plugins": {
     "StatusBar": {
-      "overlaysWebView": false,
       "style": "DARK"
     }
   }
