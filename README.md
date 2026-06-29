@@ -6,7 +6,8 @@ Very early days
 - [ ] Add body heat map to workouts
 - [ ] When creating a workout and adding an exercise, you should be able to filter to a muscle group
 - [ ] Expand history page to be more informative or progress
-- [ ] Make UI more mobile friendly 
+- [ ] Make UI more mobile friendly
+- [ ] Clean up old unused files, code and dependencies
 
 ## 🐛 Known Bugs
 - [ ] App renders under clock and status at top of screen
