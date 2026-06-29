@@ -14,6 +14,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Download, Upload, Info, FileText, Settings as SettingsIcon } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 
 const APP_VERSION = "1.0.0";
 const SCHEMA_VERSION = 1;
@@ -83,24 +86,15 @@ function SettingsPage() {
       const filename = `untrained-effort-backup-${stamp}.json`;
       const json = JSON.stringify(payload, null, 2);
 
-      // Capacitor WebView does not support the <a download> attribute or
-      // navigator.share({ files }) reliably. Use @capacitor/share which
-      // writes the file to the app cache directory then opens the native
-      // Android share/save sheet — the only approach that works in a WebView.
-      // Falls back to anchor-download when running in a desktop browser.
-      const { Capacitor } = await import("@capacitor/core");
       if (Capacitor.isNativePlatform()) {
-        const { Filesystem, Directory } = await import("@capacitor/filesystem");
-        const { Share } = await import("@capacitor/share");
-
-        // Write to cache dir (no permission needed on Android)
+        // On Android: write to cache directory (no storage permission needed),
+        // then open the native share/save sheet so the user chooses the destination.
         const writeResult = await Filesystem.writeFile({
           path: filename,
           data: json,
           directory: Directory.Cache,
-          encoding: "utf8" as never,
+          encoding: Encoding.UTF8,
         });
-
         await Share.share({
           title: filename,
           url: writeResult.uri,
@@ -108,7 +102,7 @@ function SettingsPage() {
         });
         toast.success("Backup exported");
       } else {
-        // Desktop browser fallback
+        // Desktop browser fallback: anchor download.
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
