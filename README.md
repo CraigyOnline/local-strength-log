@@ -8,6 +8,7 @@ Very early days
 - [ ] Expand history page to be more informative of progress
 - [ ] Make UI more mobile friendly
 - [ ] Clean up old unused files, code and dependencies
+- [ ] Selective export. Just routine, just history, everything 
 
 ## 🐛 Known Bugs
 - [ ] App renders under clock and status at top of screen
