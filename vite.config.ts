@@ -4,38 +4,42 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
-// Replaces @lovable.dev/vite-tanstack-config with direct plugin calls.
-// Each plugin maps to one feature the Lovable wrapper provided:
+// Commit 2: enable SPA mode.
+// tanstackStart's spa option is confirmed in TanStackStartViteInputConfig at
+// @tanstack/start-plugin-core@1.169.6 (dist/esm/vite/schema.d.ts lines 6623-6707).
 //
-//   tanstackStart  — SSR dev server, HTML injection, shellComponent, file-based
-//                    routing codegen (includes @tanstack/router-plugin internally)
-//   react()        — JSX transform
-//   tailwindcss()  — Tailwind v4 CSS processing
-//   tsconfigPaths  — resolves @/* to src/*
+// spa.enabled: true        — disables SSR, produces a static client build
+// spa.prerender.enabled    — crawls routes and writes static HTML shells
+// spa.prerender.outputPath — all routes render to this single HTML file,
+//                            which Capacitor loads as the app entry point
+// spa.prerender.crawlLinks — discovers all routes automatically
+// spa.maskPath             — the URL path Capacitor serves the shell from
 //
-// Intentionally omitted (Lovable-only, not needed outside the editor):
-//   - componentTagger      (visual editor overlay)
-//   - VITE_* env injection (no import.meta.env usage exists in this codebase)
-//   - sandbox port/host    (Lovable iframe detection)
-//   - error logger plugin  (build-time Lovable editor integration)
+// dist/client/ remains the output directory (established in Commit 1).
+// capacitor.config.json webDir already points at dist/client (Commit 1b).
 //
-// Nitro / cloudflare Worker build is kept via tanstackStart's default behaviour.
-// src/server.ts is still the server entry, passed via the server option below.
-// Nothing about the running application changes in this commit.
+// src/server.ts and src/start.ts are now dead code — the SSR server is not
+// built in SPA mode. They will be removed in Commit 3.
 
 export default defineConfig({
   plugins: [
     tanstackStart({
-      // Keep identical to what the Lovable wrapper was passing:
-      // points TanStack Start's Nitro build at src/server.ts
-      server: { entry: "server" },
+      spa: {
+        enabled: true,
+        prerender: {
+          enabled: true,
+          outputPath: "index.html",
+          crawlLinks: true,
+          retryCount: 3,
+        },
+        maskPath: "/",
+      },
     }),
     react(),
     tailwindcss(),
     tsconfigPaths(),
   ],
   resolve: {
-    // Prevent duplicate React/router instances — previously handled by the wrapper.
     dedupe: ["react", "react-dom", "@tanstack/react-router"],
   },
 });
