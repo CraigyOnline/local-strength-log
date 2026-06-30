@@ -40,10 +40,11 @@ jobs:
           bunx cap add android
         fi
 
+    # Fix: Corrected file path inside the workspace runner context
     - name: Generate App Assets
       run: |
         mkdir -p assets
-        cp UntrainedEffort/src/assets/brand/icon.png assets/icon.png
+        cp src/assets/brand/icon.png assets/icon.png
         bunx @capacitor/assets generate \
           --iconBackgroundColor '#ffffff' \
           --iconBackgroundColorDark '#ffffff' \
