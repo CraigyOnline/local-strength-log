@@ -52,14 +52,14 @@ jobs:
         cd android
         ./gradlew assembleRelease
 
-        # Automatically signs the generated release APK using your GitHub Secrets
+           # Automatically signs the generated release APK using your GitHub Secrets
     - name: Sign APK
-      uses: Illflow/sign-android-release@v2
+      uses: ilharp/sign-android-release@v2
       id: sign_app
       with:
-        releaseDirectory: android/app/build/outputs/apk/release
-        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-        alias: ${{ secrets.KEY_ALIAS }}
+        releaseDir: android/app/build/outputs/apk/release
+        signingKey: ${{ secrets.SIGNING_KEY }}
+        keyAlias: ${{ secrets.KEY_ALIAS }}
         keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
         keyPassword: ${{ secrets.KEY_PASSWORD }}
 
@@ -68,5 +68,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: untrained-effort-signed
-        path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+        path: ${{ steps.sign_app.outputs.signedFile }}
         retention-days: 7
