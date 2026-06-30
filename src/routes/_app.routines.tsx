@@ -2,7 +2,7 @@ import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDb, type Routine } from "@/lib/db";
-import { EXERCISES, getExercise, type MuscleGroup } from "@/lib/exercises";
+import { EXERCISES, getExercise, isTimeBased, type MuscleGroup } from "@/lib/exercises";
 import { Plus, Pencil, Trash2, X, Check, ArrowUp, ArrowDown, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -416,6 +416,8 @@ function RoutineEditor({
           <ul className="mt-3 flex flex-col gap-2">
             {exercises.map((e, i) => {
               const def = getExercise(e.exerciseId);
+              const isExCardio = def?.cardio === true;
+              const isExTimeBased = isTimeBased(def);
               return (
                 <li
                   key={i}
@@ -446,46 +448,100 @@ function RoutineEditor({
                         />
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground">Kg</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={e.targetWeight ?? ""}
-                          onChange={(ev) =>
-                            setExercises((xs) =>
-                              xs.map((x, idx) =>
-                                idx === i
-                                  ? { ...x, targetWeight: Math.max(0, Number(ev.target.value) || 0) }
-                                  : x
+                      {isExCardio ? (
+                        <>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">Km</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={e.targetWeight ?? ""}
+                              onChange={(ev) =>
+                                setExercises((xs) =>
+                                  xs.map((x, idx) =>
+                                    idx === i
+                                      ? { ...x, targetWeight: Math.max(0, Number(ev.target.value) || 0) }
+                                      : x
+                                  )
+                                )
+                              }
+                              className="w-16 rounded bg-secondary px-2 py-1 text-sm"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">Time (mm:ss)</span>
+                            <MmSsInput
+                              seconds={e.targetDuration ?? 0}
+                              onCommit={(secs) =>
+                                setExercises((xs) =>
+                                  xs.map((x, idx) =>
+                                    idx === i ? { ...x, targetDuration: secs } : x
+                                  )
+                                )
+                              }
+                            />
+                          </div>
+                        </>
+                      ) : isExTimeBased ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">Time (mm:ss)</span>
+                          <MmSsInput
+                            seconds={e.targetDuration ?? 0}
+                            onCommit={(secs) =>
+                              setExercises((xs) =>
+                                xs.map((x, idx) =>
+                                  idx === i ? { ...x, targetDuration: secs } : x
+                                )
                               )
-                            )
-                          }
-                          className="w-16 rounded bg-secondary px-2 py-1 text-sm"
-                          placeholder="0"
-                        />
-                      </div>
+                            }
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">Kg</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={e.targetWeight ?? ""}
+                              onChange={(ev) =>
+                                setExercises((xs) =>
+                                  xs.map((x, idx) =>
+                                    idx === i
+                                      ? { ...x, targetWeight: Math.max(0, Number(ev.target.value) || 0) }
+                                      : x
+                                  )
+                                )
+                              }
+                              className="w-16 rounded bg-secondary px-2 py-1 text-sm"
+                              placeholder="0"
+                            />
+                          </div>
 
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground">Reps</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={e.targetReps ?? ""}
-                          onChange={(ev) =>
-                            setExercises((xs) =>
-                              xs.map((x, idx) =>
-                                idx === i
-                                  ? { ...x, targetReps: Math.max(0, Number(ev.target.value) || 0) }
-                                  : x
-                              )
-                            )
-                          }
-                          className="w-14 rounded bg-secondary px-2 py-1 text-sm"
-                          placeholder="0"
-                        />
-                      </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">Reps</span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={e.targetReps ?? ""}
+                              onChange={(ev) =>
+                                setExercises((xs) =>
+                                  xs.map((x, idx) =>
+                                    idx === i
+                                      ? { ...x, targetReps: Math.max(0, Number(ev.target.value) || 0) }
+                                      : x
+                                  )
+                                )
+                              }
+                              className="w-14 rounded bg-secondary px-2 py-1 text-sm"
+                              placeholder="0"
+                            />
+                          </div>
+                        </>
+                      )}
 
                     </div>
                   </div>
@@ -708,5 +764,69 @@ function ExerciseRow({
       </div>
       {added && <Check className="h-4 w-4 shrink-0 text-primary" />}
     </button>
+  );
+}
+
+// ─────────────────────────────────────────────
+// MmSsInput — proper minutes:seconds entry, used wherever a cardio/time-based
+// duration is edited. Two small fields instead of one raw-seconds box.
+// ─────────────────────────────────────────────
+
+export function MmSsInput({
+  seconds,
+  onCommit,
+}: {
+  seconds: number;
+  onCommit: (totalSeconds: number) => void;
+}) {
+  const mm = Math.floor(Math.max(0, seconds) / 60);
+  const ss = Math.max(0, seconds) % 60;
+  const [mStr, setMStr] = useState(String(mm));
+  const [sStr, setSStr] = useState(String(ss).padStart(2, "0"));
+
+  useEffect(() => {
+    setMStr(String(mm));
+    setSStr(String(ss).padStart(2, "0"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seconds]);
+
+  function commit(nextM: string, nextS: string) {
+    const m = Math.max(0, parseInt(nextM, 10) || 0);
+    const s = Math.max(0, Math.min(59, parseInt(nextS, 10) || 0));
+    onCommit(m * 60 + s);
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={mStr}
+        onChange={(e) => {
+          const v = e.target.value.replace(/[^0-9]/g, "");
+          setMStr(v);
+        }}
+        onBlur={() => commit(mStr, sStr)}
+        placeholder="0"
+        className="w-10 rounded bg-secondary px-2 py-1 text-center text-sm"
+      />
+      <span className="text-sm text-muted-foreground">:</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={sStr}
+        onChange={(e) => {
+          const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 2);
+          setSStr(v);
+        }}
+        onBlur={() => {
+          const padded = sStr === "" ? "00" : sStr.padStart(2, "0");
+          setSStr(padded);
+          commit(mStr, padded);
+        }}
+        placeholder="00"
+        className="w-10 rounded bg-secondary px-2 py-1 text-center text-sm"
+      />
+    </div>
   );
 }

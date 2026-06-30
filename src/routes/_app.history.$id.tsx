@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Check, Trash2, X, Pencil, Save } from "lucide-react";
 import { getDb, type Workout, type WorkoutExerciseLog, type PRRecord } from "@/lib/db";
 import { getExercise, isTimeBased } from "@/lib/exercises";
-import { ExercisePicker } from "./_app.routines";
+import { ExercisePicker, MmSsInput } from "./_app.routines";
 import { Button } from "@/components/ui/button";
 import { WorkoutSummary } from "@/components/WorkoutSummary";
 import { formatDuration } from "@/lib/format";
@@ -28,6 +28,13 @@ type PRType = "weight" | "reps" | "time";
 async function savePR(exerciseId: string, type: PRType, value: number, workoutId?: number) {
   const db = getDb();
   const existing = await db.prHistory.where({ exerciseId, type }).toArray();
+
+  // A PR record already exists for this exact workout (e.g. from a previous
+  // save of this same edit session) — don't write a second one for it.
+  if (workoutId != null && existing.some((p) => p.workoutId === workoutId)) {
+    return false;
+  }
+
   const previousBest = existing.reduce((m, p) => Math.max(m, p.value), 0);
   if (value > previousBest) {
     await db.prHistory.add({
@@ -440,44 +447,41 @@ function HistoryDetailPage() {
                         )}
                         <div className="flex flex-col gap-1">
                           <span className="text-[10px] uppercase font-bold text-muted-foreground/60">
-                            {isCardio ? "Time (mm:ss)" : timeBased ? "Duration" : "Reps"}
+                            {timeBased ? "Time (mm:ss)" : "Reps"}
                           </span>
-                          <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border">
-                            <button
-                              onClick={() =>
-                                timeBased
-                                  ? patchSet(ei, si, {
-                                      duration: Math.max(0, (s.duration ?? 0) - 5),
-                                    })
-                                  : patchSet(ei, si, {
-                                      reps: Math.max(0, (s.reps ?? 0) - 1),
-                                    })
-                              }
-                              className="w-8 h-full"
-                            >
-                              −
-                            </button>
-                            <input
-                              className="w-12 bg-transparent text-center"
-                              value={(timeBased ? s.duration : s.reps) ?? ""}
-                              onChange={(e) => {
-                                const v = Number(e.target.value.replace(/[^0-9]/g, ""));
-                                timeBased
-                                  ? patchSet(ei, si, { duration: v })
-                                  : patchSet(ei, si, { reps: v });
-                              }}
+                          {timeBased ? (
+                            <MmSsInput
+                              seconds={s.duration ?? 0}
+                              onCommit={(secs) => patchSet(ei, si, { duration: secs })}
                             />
-                            <button
-                              onClick={() =>
-                                timeBased
-                                  ? patchSet(ei, si, { duration: (s.duration ?? 0) + 5 })
-                                  : patchSet(ei, si, { reps: (s.reps ?? 0) + 1 })
-                              }
-                              className="w-8 h-full"
-                            >
-                              +
-                            </button>
-                          </div>
+                          ) : (
+                            <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border">
+                              <button
+                                onClick={() =>
+                                  patchSet(ei, si, { reps: Math.max(0, (s.reps ?? 0) - 1) })
+                                }
+                                className="w-8 h-full"
+                              >
+                                −
+                              </button>
+                              <input
+                                className="w-12 bg-transparent text-center"
+                                value={s.reps ?? ""}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value.replace(/[^0-9]/g, ""));
+                                  patchSet(ei, si, { reps: v });
+                                }}
+                              />
+                              <button
+                                onClick={() =>
+                                  patchSet(ei, si, { reps: (s.reps ?? 0) + 1 })
+                                }
+                                className="w-8 h-full"
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (
