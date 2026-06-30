@@ -85,7 +85,7 @@ export const EXERCISES: ExerciseDef[] = [
   E("pull-up", "Pull Up", "Lats", "Bodyweight", ["Biceps"]),
   E("chin-up", "Chin Up", "Lats", "Bodyweight", ["Biceps"]),
   E("lat-pulldown", "Lat Pulldown", "Lats", "Cable", ["Biceps"]),
-  E("seated-row", "Seated Cable Row", "UpperBack", "Cable", ["Biceps"]),
+  E("seated-row", "Seated Cable Row", "UpperBack", "Cable", ["Lats", "Biceps"]),
   E("db-row", "Dumbbell Row", "Lats", "Dumbbell", ["UpperBack", "Biceps"]),
   E("barbell-row", "Barbell Row", "UpperBack", "Barbell", ["Lats", "Biceps"]),
   E("t-bar-row", "T-Bar Row", "UpperBack", "Barbell", ["Lats"]),
@@ -119,7 +119,7 @@ export const EXERCISES: ExerciseDef[] = [
   E("goblet-squat", "Goblet Squat", "Quads", "Dumbbell", ["Glutes"]),
   E("leg-press", "Leg Press", "Quads", "Machine", ["Glutes"]),
   E("leg-extension", "Leg Extension", "Quads", "Machine"),
-  E("leg-curl", "Leg Curl", "Hamstrings", "Machine"),
+  E("leg-curl", "Leg Curl", "Hamstrings", "Machine", ["Calves"]),
   E("lunge", "Walking Lunge", "Quads", "Dumbbell", ["Glutes"]),
   E("bulgarian-split-squat", "Bulgarian Split Squat", "Quads", "Dumbbell", ["Glutes"]),
   E("hip-thrust", "Hip Thrust", "Glutes", "Barbell", ["Hamstrings"]),
@@ -128,17 +128,17 @@ export const EXERCISES: ExerciseDef[] = [
   E("seated-calf-raise", "Seated Calf Raise", "Calves", "Machine"),
 
   // Core (time-based)
-  E("plank", "Plank", "Abs", "Bodyweight", [], { time: true }),
+  E("plank", "Plank", "Abs", "Bodyweight", ["Obliques", "Shoulders"], { time: true }),
   E("side-plank", "Side Plank", "Obliques", "Bodyweight", ["Abs"], { time: true }),
   E("dead-hang", "Dead Hang", "Forearms", "Bodyweight", ["Lats"], { time: true }),
   E("wall-sit", "Wall Sit", "Quads", "Bodyweight", ["Glutes"], { time: true }),
   E("hollow-hold", "Hollow Hold", "Abs", "Bodyweight", [], { time: true }),
-  E("l-sit", "L-Sit", "Abs", "Bodyweight", [], { time: true }),
+  E("l-sit", "L-Sit", "Abs", "Bodyweight", ["Quads", "Triceps"], { time: true }),
 
   // Core (reps)
   E("crunch", "Crunch", "Abs", "Bodyweight"),
   E("sit-up", "Sit Up", "Abs", "Bodyweight"),
-  E("hanging-leg-raise", "Hanging Leg Raise", "Abs", "Bodyweight"),
+  E("hanging-leg-raise", "Hanging Leg Raise", "Abs", "Bodyweight", ["Forearms"]),
   E("russian-twist", "Russian Twist", "Obliques", "Bodyweight"),
   E("ab-wheel", "Ab Wheel Rollout", "Abs", "Other"),
 
