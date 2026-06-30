@@ -40,14 +40,15 @@ jobs:
           bunx cap add android
         fi
 
-    # Generates icons using your exact folder structure without moving files
     - name: Generate App Assets
       run: |
+        mkdir -p assets
+        cp UntrainedEffort/src/assets/brand/icon.png assets/icon.png
         bunx @capacitor/assets generate \
-          --asset-path UntrainedEffort/src/assets/brand \
           --iconBackgroundColor '#ffffff' \
           --iconBackgroundColorDark '#ffffff' \
           --android
+        rm -rf assets
 
     - name: Capacitor Sync
       run: bunx cap sync android
