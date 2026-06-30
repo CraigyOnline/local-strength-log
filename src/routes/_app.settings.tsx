@@ -116,7 +116,7 @@ function SettingsPage() {
   async function confirmExport() {
     const anySelected = Object.values(exportSelected).some(Boolean);
     if (!anySelected) {
-      toast.error("Select at least one category to export");
+      toast.error("Select at least one category to export", { duration: 4000 });
       return;
     }
 
@@ -152,7 +152,7 @@ function SettingsPage() {
           url: writeResult.uri,
           dialogTitle: "Save or share backup",
         });
-        toast.success("Backup exported");
+        toast.success("Backup exported", { duration: 4000 });
       } else {
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -163,13 +163,13 @@ function SettingsPage() {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        toast.success("Backup downloaded");
+        toast.success("Backup downloaded", { duration: 4000 });
       }
       setExportOpen(false);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
       console.error(err);
-      toast.error("Export failed");
+      toast.error("Export failed", { duration: 4000 });
     }
   }
 
@@ -188,11 +188,11 @@ function SettingsPage() {
       const text = await file.text();
       const parsed = JSON.parse(text);
       if (!isBackupPayload(parsed)) {
-        toast.error("Invalid backup file");
+        toast.error("Invalid backup file", { duration: 4000 });
         return;
       }
       if (parsed.schemaVersion !== SCHEMA_VERSION) {
-        toast.error(`Unsupported schema version: ${parsed.schemaVersion}`);
+        toast.error(`Unsupported schema version: ${parsed.schemaVersion}`, { duration: 4000 });
         return;
       }
 
@@ -206,7 +206,7 @@ function SettingsPage() {
       });
     } catch (err) {
       console.error(err);
-      toast.error("Could not read backup file");
+      toast.error("Could not read backup file", { duration: 4000 });
     }
   }
 
@@ -214,7 +214,7 @@ function SettingsPage() {
     if (!importPayload) return;
     const anySelected = Object.values(importSelected).some(Boolean);
     if (!anySelected) {
-      toast.error("Select at least one category to import");
+      toast.error("Select at least one category to import", { duration: 4000 });
       return;
     }
     if (importMode === "replace") {
@@ -264,11 +264,12 @@ function SettingsPage() {
       if (selected.workouts) parts.push(`${payload.workouts.length} workouts`);
       if (selected.prHistory) parts.push(`${payload.prHistory.length} PR records`);
       toast.success(
-        `${mode === "replace" ? "Replaced" : "Imported"} ${parts.join(", ")}`
+        `${mode === "replace" ? "Replaced" : "Imported"} ${parts.join(", ")}`,
+        { duration: 4000 }
       );
     } catch (err) {
       console.error(err);
-      toast.error(mode === "replace" ? "Replace import failed" : "Import failed");
+      toast.error(mode === "replace" ? "Replace import failed" : "Import failed", { duration: 4000 });
     } finally {
       setImportPayload(null);
       setReplaceConfirmOpen(false);
