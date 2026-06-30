@@ -11,7 +11,7 @@ import {
   type PRRecord,
 } from "@/lib/db";
 import { getExercise, isTimeBased } from "@/lib/exercises";
-import { ExercisePicker, MmSsInput } from "./_app.routines";
+import { ExercisePicker } from "./_app.routines";
 import { Check, Plus, Timer, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WorkoutSummary } from "@/components/WorkoutSummary";
@@ -42,15 +42,7 @@ interface ActiveSession {
   startedAt: number;
   exercises: Array<{
     exerciseId: string;
-    sets: Array<
-      WorkoutSet & {
-        timerStart?: number | null;
-        /** "up" = stopwatch (default). "down" = countdown from targetSeconds,
-         *  then continues counting up as overflow once it hits zero. */
-        timerMode?: "up" | "down";
-        targetSeconds?: number | null;
-      }
-    >;
+    sets: Array<WorkoutSet & { timerStart?: number | null }>;
   }>;
 }
 
@@ -59,21 +51,8 @@ function newId(): string {
   return `s_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function makeSet(): WorkoutSet & {
-  timerStart: number | null;
-  timerMode: "up" | "down";
-  targetSeconds: number | null;
-} {
-  return {
-    id: newId(),
-    weight: 0,
-    reps: 0,
-    duration: 0,
-    completed: false,
-    timerStart: null,
-    timerMode: "up",
-    targetSeconds: null,
-  };
+function makeSet(): WorkoutSet & { timerStart: number | null } {
+  return { id: newId(), weight: 0, reps: 0, duration: 0, completed: false, timerStart: null };
 }
 
 function WorkoutPage() {
@@ -588,26 +567,6 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
     return (s.duration ?? 0) + Math.round((now - s.timerStart) / 1000);
   }
 
-  /**
-   * Translates raw elapsed seconds into what should be shown on screen.
-   * Count-up: just the elapsed time.
-   * Countdown: target minus elapsed while still running down; once elapsed
-   * reaches the target, switches to overflow (elapsed - target) so the user
-   * can see how much extra time they've gone past their goal. The underlying
-   * saved `duration` is always the true elapsed total either way.
-   */
-  function getDisplay(
-    s: WorkoutSet & { timerStart?: number | null; timerMode?: "up" | "down"; targetSeconds?: number | null },
-  ): { seconds: number; overflowing: boolean } {
-    const elapsed = getLiveDuration(s);
-    if (s.timerMode !== "down" || !s.targetSeconds) {
-      return { seconds: elapsed, overflowing: false };
-    }
-    const remaining = s.targetSeconds - elapsed;
-    if (remaining > 0) return { seconds: remaining, overflowing: false };
-    return { seconds: -remaining, overflowing: true };
-  }
-
   function updateSet(
     ei: number,
     si: number,
@@ -781,32 +740,56 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
             {!def?.interval && (
               <>
                 <div className="mt-3 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
-                  <span>{isCardio ? "" : "#"}</span>
-                  <span>{isCardio ? "" : timeBased ? "Sec" : "Kg"}</span>
-                  <span>{isCardio ? "" : timeBased ? "Distance/Notes" : "Reps"}</span>
+                  <span>{isCardio ? "Set" : "#"}</span>
+                  <span>{isCardio ? "Km" : timeBased ? "Sec" : "Kg"}</span>
+                  <span>{isCardio ? "Time" : timeBased ? "Distance/Notes" : "Reps"}</span>
                   <span />
                   <span />
                 </div>
 
-                {ex.sets.map((s, si) =>
-                  isCardio ? (
-                    <CardioSetRow
-                      key={si}
-                      index={si}
-                      set={s}
-                      now={now}
-                      onUpdate={(patch) => updateSet(ei, si, patch)}
-                      onToggleTimer={() => toggleTimer(ei, si)}
-                      onRemove={() => removeSet(ei, si)}
-                    />
-                  ) : (
+                {ex.sets.map((s, si) => (
                   <div
                     key={si}
                     className="mt-2 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2"
                   >
                     <span className="text-sm font-semibold">{si + 1}</span>
 
-                    {timeBased ? (
+                    {isCardio ? (
+                      <>
+                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border">
+                          <button
+                            onClick={() => updateSet(ei, si, { weight: Math.max(0, (s.weight ?? 0) - 0.1) })}
+                            className="w-7 h-full text-sm"
+                          >
+                            −
+                          </button>
+                          <NumField
+                            value={s.weight ?? 0}
+                            onCommit={(v) => updateSet(ei, si, { weight: v })}
+                            decimal
+                            placeholder="0"
+                          />
+                          <button
+                            onClick={() => updateSet(ei, si, { weight: (s.weight ?? 0) + 0.1 })}
+                            className="w-7 h-full text-sm"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-[60px] tabular-nums text-sm">
+                            {formatTime(getLiveDuration(s))}
+                          </span>
+                          <button
+                            onClick={() => toggleTimer(ei, si)}
+                            className="rounded bg-secondary px-2 py-1 text-xs"
+                          >
+                            {s.timerStart ? "■" : "▶"}
+                          </button>
+                        </div>
+                      </>
+                    ) : timeBased ? (
                       <>
                         <div className="flex items-center gap-2">
                           <span className="min-w-[60px] tabular-nums text-sm">
@@ -900,8 +883,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                  )
-                )}
+                ))}
 
                 <button
                   onClick={() => addSet(ei)}
@@ -948,155 +930,6 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
 // NumField
 // ─────────────────────────────────────────────
 
-// ─────────────────────────────────────────────
-// CardioSetRow — km + a count-up/countdown timer with a mode toggle.
-// In countdown mode, once elapsed time reaches the target, the display
-// switches to a clearly-marked "overflow" count (extra time past target).
-// The saved duration is always the true total elapsed time either way.
-// ─────────────────────────────────────────────
-
-function CardioSetRow({
-  index,
-  set: s,
-  now,
-  onUpdate,
-  onToggleTimer,
-  onRemove,
-}: {
-  index: number;
-  set: WorkoutSet & {
-    timerStart?: number | null;
-    timerMode?: "up" | "down";
-    targetSeconds?: number | null;
-  };
-  now: number;
-  onUpdate: (
-    patch: Partial<
-      WorkoutSet & { timerStart: number | null; timerMode: "up" | "down"; targetSeconds: number | null }
-    >,
-  ) => void;
-  onToggleTimer: () => void;
-  onRemove: () => void;
-}) {
-  const elapsed = s.timerStart
-    ? (s.duration ?? 0) + Math.round((now - s.timerStart) / 1000)
-    : s.duration ?? 0;
-
-  const isCountdown = s.timerMode === "down" && !!s.targetSeconds;
-  const remaining = isCountdown ? (s.targetSeconds ?? 0) - elapsed : 0;
-  const overflowing = isCountdown && remaining <= 0;
-  const displaySeconds = isCountdown ? Math.abs(remaining) : elapsed;
-
-  return (
-    <div className="mt-2 rounded-lg bg-secondary/30 p-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold">Set {index + 1}</span>
-
-        <div className="flex items-center gap-2">
-          {/* Count up / count down toggle — disabled once the timer is running */}
-          <div className="flex items-center rounded-full bg-secondary text-[11px] font-semibold overflow-hidden">
-            <button
-              disabled={!!s.timerStart}
-              onClick={() => onUpdate({ timerMode: "up" })}
-              className={`px-2 py-1 ${
-                (s.timerMode ?? "up") === "up"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Count up
-            </button>
-            <button
-              disabled={!!s.timerStart}
-              onClick={() => onUpdate({ timerMode: "down" })}
-              className={`px-2 py-1 ${
-                s.timerMode === "down"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Countdown
-            </button>
-          </div>
-
-          <button
-            onClick={() => onUpdate({ completed: !s.completed })}
-            className={`flex h-7 w-7 items-center justify-center rounded ${
-              s.completed
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-muted-foreground"
-            }`}
-          >
-            <Check className="h-4 w-4" />
-          </button>
-          <button onClick={onRemove} className="text-muted-foreground">
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase font-bold text-muted-foreground/60">Km</span>
-          <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border">
-            <button
-              onClick={() => onUpdate({ weight: Math.max(0, (s.weight ?? 0) - 0.1) })}
-              className="w-7 h-full text-sm"
-            >
-              −
-            </button>
-            <NumField
-              value={s.weight ?? 0}
-              onCommit={(v) => onUpdate({ weight: v })}
-              decimal
-              placeholder="0"
-            />
-            <button
-              onClick={() => onUpdate({ weight: (s.weight ?? 0) + 0.1 })}
-              className="w-7 h-full text-sm"
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        {s.timerMode === "down" && (
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground/60">
-              Target (mm:ss)
-            </span>
-            <MmSsInput
-              seconds={s.targetSeconds ?? 0}
-              onCommit={(secs) => onUpdate({ targetSeconds: secs })}
-            />
-          </div>
-        )}
-
-        <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase font-bold text-muted-foreground/60">
-            {overflowing ? "Over target by" : isCountdown ? "Remaining" : "Time"}
-          </span>
-          <div className="flex items-center gap-2">
-            <span
-              className={`min-w-[60px] tabular-nums text-sm font-semibold ${
-                overflowing ? "text-destructive" : ""
-              }`}
-            >
-              {overflowing ? "+" : ""}
-              {formatTime(displaySeconds)}
-            </span>
-            <button
-              onClick={onToggleTimer}
-              className="rounded bg-secondary px-2 py-1 text-xs"
-            >
-              {s.timerStart ? "■" : "▶"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 function NumField({
   value,
   onCommit,
