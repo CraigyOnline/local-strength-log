@@ -123,6 +123,7 @@ function WorkoutPage() {
           {summary.exercises.map((ex, ei) => {
             const def = getExercise(ex.exerciseId);
             const timeBased = isTimeBased(def);
+            const isCardio = def?.cardio === true;
             const completedSets = ex.sets.filter((s) => s.completed);
             if (completedSets.length === 0) return null;
             return (
@@ -131,7 +132,13 @@ function WorkoutPage() {
                 <ul className="mt-1 flex flex-col gap-0.5">
                   {completedSets.map((s, si) => {
                     let label: string;
-                    if (timeBased) {
+                    if (isCardio) {
+                      const km = s.weight ?? 0;
+                      const d = s.duration ?? 0;
+                      const m = Math.floor(d / 60);
+                      const sec = d % 60;
+                      label = `Set ${si + 1}: ${km}km · ${m}:${String(sec).padStart(2, "0")}`;
+                    } else if (timeBased) {
                       const d = s.duration ?? 0;
                       const m = Math.floor(d / 60);
                       const sec = d % 60;
@@ -503,7 +510,14 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
     return map;
   }, [allWorkouts, session.startedAt]);
 
-  function formatPrevSet(s: WorkoutSet, timeBased: boolean): string {
+  function formatPrevSet(s: WorkoutSet, timeBased: boolean, isCardio: boolean): string {
+    if (isCardio) {
+      const km = Number(s.weight) || 0;
+      const d = Number(s.duration) || 0;
+      const m = Math.floor(d / 60);
+      const sec = d % 60;
+      return `${km}km · ${m}:${String(sec).padStart(2, "0")}`;
+    }
     if (timeBased) {
       const d = Number(s.duration) || 0;
       const m = Math.floor(d / 60);
@@ -685,6 +699,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
       {session.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);
         const timeBased = isTimeBased(def);
+        const isCardio = def?.cardio === true;
 
         return (
           <div key={ei} className="rounded-xl bg-card p-3">
@@ -708,7 +723,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                   </p>
                   <ul className="mt-0.5 text-xs tabular-nums text-foreground/80">
                     {prev.map((s, i) => (
-                      <li key={i}>{formatPrevSet(s, timeBased)}</li>
+                      <li key={i}>{formatPrevSet(s, timeBased, isCardio)}</li>
                     ))}
                   </ul>
                 </div>
@@ -725,9 +740,9 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
             {!def?.interval && (
               <>
                 <div className="mt-3 grid grid-cols-[24px_1fr_1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
-                  <span>#</span>
-                  <span>{timeBased ? "Sec" : "Kg"}</span>
-                  <span>{timeBased ? "Distance/Notes" : "Reps"}</span>
+                  <span>{isCardio ? "Set" : "#"}</span>
+                  <span>{isCardio ? "Km" : timeBased ? "Sec" : "Kg"}</span>
+                  <span>{isCardio ? "Time (mm:ss)" : timeBased ? "Distance/Notes" : "Reps"}</span>
                   <span />
                   <span />
                 </div>
@@ -739,7 +754,42 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                   >
                     <span className="text-sm font-semibold">{si + 1}</span>
 
-                    {timeBased ? (
+                    {isCardio ? (
+                      <>
+                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border">
+                          <button
+                            onClick={() => updateSet(ei, si, { weight: Math.max(0, (s.weight ?? 0) - 0.1) })}
+                            className="w-7 h-full text-sm"
+                          >
+                            −
+                          </button>
+                          <NumField
+                            value={s.weight ?? 0}
+                            onCommit={(v) => updateSet(ei, si, { weight: v })}
+                            decimal
+                            placeholder="0"
+                          />
+                          <button
+                            onClick={() => updateSet(ei, si, { weight: (s.weight ?? 0) + 0.1 })}
+                            className="w-7 h-full text-sm"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-[60px] tabular-nums text-sm">
+                            {formatTime(getLiveDuration(s))}
+                          </span>
+                          <button
+                            onClick={() => toggleTimer(ei, si)}
+                            className="rounded bg-secondary px-2 py-1 text-xs"
+                          >
+                            {s.timerStart ? "■" : "▶"}
+                          </button>
+                        </div>
+                      </>
+                    ) : timeBased ? (
                       <>
                         <div className="flex items-center gap-2">
                           <span className="min-w-[60px] tabular-nums text-sm">

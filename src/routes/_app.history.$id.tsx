@@ -402,9 +402,45 @@ function HistoryDetailPage() {
                             </div>
                           </div>
                         )}
+                        {isCardio && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground/60">
+                              Km
+                            </span>
+                            <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border">
+                              <button
+                                onClick={() =>
+                                  patchSet(ei, si, {
+                                    weight: Math.max(0, (s.weight ?? 0) - 0.1),
+                                  })
+                                }
+                                className="w-8 h-full"
+                              >
+                                −
+                              </button>
+                              <input
+                                className="w-12 bg-transparent text-center"
+                                value={s.weight ?? ""}
+                                onChange={(e) =>
+                                  patchSet(ei, si, {
+                                    weight: Number(e.target.value.replace(/[^0-9.]/g, "")),
+                                  })
+                                }
+                              />
+                              <button
+                                onClick={() =>
+                                  patchSet(ei, si, { weight: (s.weight ?? 0) + 0.1 })
+                                }
+                                className="w-8 h-full"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         <div className="flex flex-col gap-1">
                           <span className="text-[10px] uppercase font-bold text-muted-foreground/60">
-                            {timeBased ? "Duration" : "Reps"}
+                            {isCardio ? "Time (mm:ss)" : timeBased ? "Duration" : "Reps"}
                           </span>
                           <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border">
                             <button
@@ -447,7 +483,7 @@ function HistoryDetailPage() {
                     ) : (
                       <div className="flex items-center gap-1.5 font-medium">
                         {isCardio ? (
-                          <span>{formatDuration(s.duration ?? 0)}</span>
+                          <span>{s.weight ?? 0}km · {formatDuration(s.duration ?? 0)}</span>
                         ) : timeBased ? (
                           <span>{s.duration ?? 0}s</span>
                         ) : (

@@ -371,7 +371,7 @@ function RoutineEditor({
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-50 flex justify-center bg-background"
+      className="fixed inset-x-0 top-0 z-50 flex justify-center bg-background pt-[env(safe-area-inset-top)]"
       style={{ bottom: `${BOTTOM_NAV_HEIGHT}px` }}
     >
       <div className="flex h-full w-full max-w-md flex-col">
