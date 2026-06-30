@@ -143,13 +143,13 @@ export const EXERCISES: ExerciseDef[] = [
   E("ab-wheel", "Ab Wheel Rollout", "Abs", "Other"),
 
   // Cardio (time-based)
-  E("treadmill", "Treadmill Run", "Cardio", "Cardio", [], { cardio: true, time: true }),
-  E("rowing-machine", "Rowing Machine", "Cardio", "Cardio", ["UpperBack", "Lats"], { cardio: true, time: true }),
-  E("stationary-bike", "Stationary Bike", "Cardio", "Cardio", ["Quads"], { cardio: true, time: true }),
-  E("elliptical", "Elliptical", "Cardio", "Cardio", [], { cardio: true, time: true }),
-  E("stair-climber", "Stair Climber", "Cardio", "Cardio", ["Glutes"], { cardio: true, time: true }),
-  E("jump-rope", "Jump Rope", "Cardio", "Cardio", ["Calves"], { cardio: true, time: true }),
-  E("rowing-intervals", "Rowing Intervals", "Cardio", "Cardio", ["UpperBack", "Lats"], {
+  E("treadmill", "Treadmill Run", "Cardio", "Cardio", ["Quads", "Hamstrings", "Calves", "Glutes"], { cardio: true, time: true }),
+  E("rowing-machine", "Rowing Machine", "Cardio", "Cardio", ["Quads", "Hamstrings", "Glutes", "UpperBack", "Lats"], { cardio: true, time: true }),
+  E("stationary-bike", "Stationary Bike", "Cardio", "Cardio", ["Quads", "Hamstrings", "Calves", "Glutes"], { cardio: true, time: true }),
+  E("elliptical", "Elliptical", "Cardio", "Cardio", ["Quads", "Hamstrings", "Glutes", "Calves"], { cardio: true, time: true }),
+  E("stair-climber", "Stair Climber", "Cardio", "Cardio", ["Glutes", "Quads", "Hamstrings", "Calves"], { cardio: true, time: true }),
+  E("jump-rope", "Jump Rope", "Cardio", "Cardio", ["Calves", "Quads"], { cardio: true, time: true }),
+  E("rowing-intervals", "Rowing Intervals", "Cardio", "Cardio", ["Quads", "Hamstrings", "Glutes", "UpperBack", "Lats"], {
     cardio: true,
     time: true,
     interval: { rounds: 8, workSeconds: 60, restSeconds: 120 },
