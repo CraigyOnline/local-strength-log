@@ -435,13 +435,17 @@ function RoutineEditor({
                           type="number"
                           min="1"
                           value={e.sets}
+                          onFocus={(ev) => ev.currentTarget.select()}
                           onChange={(ev) =>
                             setExercises((xs) =>
-                              xs.map((x, idx) =>
-                                idx === i
-                                  ? { ...x, sets: Math.max(1, Number(ev.target.value) || 1) }
-                                  : x
-                              )
+                              xs.map((x, idx) => {
+                                if (idx !== i) return x;
+                                const raw = ev.target.value;
+                                return {
+                                  ...x,
+                                  sets: raw === "" ? x.sets : Math.max(1, Number(raw)),
+                                };
+                              })
                             )
                           }
                           className="w-14 rounded bg-secondary px-2 py-1 text-sm"
