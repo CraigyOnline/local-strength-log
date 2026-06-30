@@ -31,8 +31,8 @@ jobs:
     - name: Build Web Application
       run: bun run build
 
-    - name: Install Capacitor Tooling
-      run: bun add @capacitor/cli @capacitor/android
+    - name: Install Capacitor Tooling and Asset Generator
+      run: bun add @capacitor/cli @capacitor/android @capacitor/assets
 
     - name: Ensure Android Platform Exists
       run: |
@@ -40,19 +40,26 @@ jobs:
           bunx cap add android
         fi
 
+    # Generates icons using your exact folder structure without moving files
+    - name: Generate App Assets
+      run: |
+        bunx @capacitor/assets generate \
+          --asset-path UntrainedEffort/src/assets/brand \
+          --iconBackgroundColor '#ffffff' \
+          --iconBackgroundColorDark '#ffffff' \
+          --android
+
     - name: Capacitor Sync
       run: bunx cap sync android
 
     - name: Chmod Gradle Wrapper
       run: chmod +x android/gradlew
 
-    # Changed from assembleDebug to assembleRelease for proper production signing
     - name: Build with Gradle
       run: |
         cd android
         ./gradlew assembleRelease
 
-           # Automatically signs the generated release APK using your GitHub Secrets
     - name: Sign APK
       uses: ilharp/sign-android-release@v2
       id: sign_app
@@ -63,7 +70,6 @@ jobs:
         keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
         keyPassword: ${{ secrets.KEY_PASSWORD }}
 
-    # Uploads your permanently signed APK file
     - name: Upload Signed APK Artifact
       uses: actions/upload-artifact@v4
       with:
