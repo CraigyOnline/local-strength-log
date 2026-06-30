@@ -13,6 +13,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Download, Upload, Info, FileText, Settings as SettingsIcon } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
@@ -30,6 +39,8 @@ export const Route = createFileRoute("/_app/settings")({
   }),
   component: SettingsPage,
 });
+
+type Category = "routines" | "workouts" | "prHistory";
 
 interface BackupPayload {
   schemaVersion: number;
@@ -50,10 +61,33 @@ function isBackupPayload(x: unknown): x is BackupPayload {
   );
 }
 
+function categoryLabel(c: Category): string {
+  if (c === "routines") return "Routines";
+  if (c === "workouts") return "Workout History";
+  return "PR Records";
+}
+
 function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [pendingReplace, setPendingReplace] = useState<BackupPayload | null>(null);
+
+  // ── Export dialog state ─────────────────────────────────────────────
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportSelected, setExportSelected] = useState<Record<Category, boolean>>({
+    routines: true,
+    workouts: true,
+    prHistory: true,
+  });
+  const [exportCounts, setExportCounts] = useState<Record<Category, number> | null>(null);
+
+  // ── Import dialog state ─────────────────────────────────────────────
   const [importMode, setImportMode] = useState<"merge" | "replace">("merge");
+  const [importPayload, setImportPayload] = useState<BackupPayload | null>(null);
+  const [importSelected, setImportSelected] = useState<Record<Category, boolean>>({
+    routines: true,
+    workouts: true,
+    prHistory: true,
+  });
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
 
   const workoutCount = useLiveQuery(async () => {
     if (typeof window === "undefined") return 0;
@@ -65,13 +99,33 @@ function SettingsPage() {
     return getDb().routines.count();
   }, []);
 
-  async function handleExport() {
+  // ── Export flow ──────────────────────────────────────────────────────
+
+  async function openExportDialog() {
+    const db = getDb();
+    const [routines, workouts, prHistory] = await Promise.all([
+      db.routines.count(),
+      db.workouts.count(),
+      db.prHistory.count(),
+    ]);
+    setExportCounts({ routines, workouts, prHistory });
+    setExportSelected({ routines: true, workouts: true, prHistory: true });
+    setExportOpen(true);
+  }
+
+  async function confirmExport() {
+    const anySelected = Object.values(exportSelected).some(Boolean);
+    if (!anySelected) {
+      toast.error("Select at least one category to export");
+      return;
+    }
+
     try {
       const db = getDb();
       const [routines, workouts, prHistory] = await Promise.all([
-        db.routines.toArray(),
-        db.workouts.toArray(),
-        db.prHistory.toArray(),
+        exportSelected.routines ? db.routines.toArray() : Promise.resolve([]),
+        exportSelected.workouts ? db.workouts.toArray() : Promise.resolve([]),
+        exportSelected.prHistory ? db.prHistory.toArray() : Promise.resolve([]),
       ]);
 
       const payload: BackupPayload = {
@@ -87,8 +141,6 @@ function SettingsPage() {
       const json = JSON.stringify(payload, null, 2);
 
       if (Capacitor.isNativePlatform()) {
-        // On Android: write to cache directory (no storage permission needed),
-        // then open the native share/save sheet so the user chooses the destination.
         const writeResult = await Filesystem.writeFile({
           path: filename,
           data: json,
@@ -102,7 +154,6 @@ function SettingsPage() {
         });
         toast.success("Backup exported");
       } else {
-        // Desktop browser fallback: anchor download.
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -114,6 +165,7 @@ function SettingsPage() {
         URL.revokeObjectURL(url);
         toast.success("Backup downloaded");
       }
+      setExportOpen(false);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
       console.error(err);
@@ -121,8 +173,9 @@ function SettingsPage() {
     }
   }
 
-  function triggerImport(mode: "merge" | "replace") {
-    setImportMode(mode);
+  // ── Import flow ──────────────────────────────────────────────────────
+
+  function triggerFilePick() {
     fileRef.current?.click();
   }
 
@@ -143,58 +196,82 @@ function SettingsPage() {
         return;
       }
 
-      if (importMode === "replace") {
-        setPendingReplace(parsed);
-      } else {
-        await mergeImport(parsed);
-      }
+      setImportPayload(parsed);
+      setImportMode("merge");
+      // Only pre-select categories that actually contain data in this file.
+      setImportSelected({
+        routines: parsed.routines.length > 0,
+        workouts: parsed.workouts.length > 0,
+        prHistory: parsed.prHistory.length > 0,
+      });
     } catch (err) {
       console.error(err);
       toast.error("Could not read backup file");
     }
   }
 
-  async function mergeImport(payload: BackupPayload) {
-    try {
-      const db = getDb();
-      await db.transaction("rw", db.routines, db.workouts, db.prHistory, async () => {
-        for (const r of payload.routines) {
-          const { id: _id, ...rest } = r;
-          await db.routines.add(rest as Routine);
-        }
-        for (const w of payload.workouts) {
-          const { id: _id, ...rest } = w;
-          await db.workouts.add(rest as Workout);
-        }
-        for (const p of payload.prHistory) {
-          const { id: _id, ...rest } = p;
-          await db.prHistory.add(rest as PRRecord);
-        }
-      });
-      toast.success(
-        `Merged ${payload.routines.length} routines, ${payload.workouts.length} workouts`
-      );
-    } catch (err) {
-      console.error(err);
-      toast.error("Merge import failed");
+  function startImport() {
+    if (!importPayload) return;
+    const anySelected = Object.values(importSelected).some(Boolean);
+    if (!anySelected) {
+      toast.error("Select at least one category to import");
+      return;
+    }
+    if (importMode === "replace") {
+      setReplaceConfirmOpen(true);
+    } else {
+      runImport();
     }
   }
 
-  async function replaceImport(payload: BackupPayload) {
+  async function runImport() {
+    if (!importPayload) return;
+    const payload = importPayload;
+    const selected = importSelected;
+    const mode = importMode;
+
     try {
       const db = getDb();
       await db.transaction("rw", db.routines, db.workouts, db.prHistory, async () => {
-        await Promise.all([db.routines.clear(), db.workouts.clear(), db.prHistory.clear()]);
-        await db.routines.bulkPut(payload.routines);
-        await db.workouts.bulkPut(payload.workouts);
-        await db.prHistory.bulkPut(payload.prHistory);
+        if (mode === "replace") {
+          if (selected.routines) await db.routines.clear();
+          if (selected.workouts) await db.workouts.clear();
+          if (selected.prHistory) await db.prHistory.clear();
+        }
+
+        if (selected.routines) {
+          for (const r of payload.routines) {
+            const { id: _id, ...rest } = r;
+            await db.routines.add(rest as Routine);
+          }
+        }
+        if (selected.workouts) {
+          for (const w of payload.workouts) {
+            const { id: _id, ...rest } = w;
+            await db.workouts.add(rest as Workout);
+          }
+        }
+        if (selected.prHistory) {
+          for (const p of payload.prHistory) {
+            const { id: _id, ...rest } = p;
+            await db.prHistory.add(rest as PRRecord);
+          }
+        }
       });
-      toast.success("Data replaced from backup");
+
+      const parts: string[] = [];
+      if (selected.routines) parts.push(`${payload.routines.length} routines`);
+      if (selected.workouts) parts.push(`${payload.workouts.length} workouts`);
+      if (selected.prHistory) parts.push(`${payload.prHistory.length} PR records`);
+      toast.success(
+        `${mode === "replace" ? "Replaced" : "Imported"} ${parts.join(", ")}`
+      );
     } catch (err) {
       console.error(err);
-      toast.error("Replace import failed");
+      toast.error(mode === "replace" ? "Replace import failed" : "Import failed");
     } finally {
-      setPendingReplace(null);
+      setImportPayload(null);
+      setReplaceConfirmOpen(false);
     }
   }
 
@@ -222,7 +299,7 @@ function SettingsPage() {
 
         <div className="flex flex-col gap-2">
           <button
-            onClick={handleExport}
+            onClick={openExportDialog}
             className="flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground active:scale-[0.99]"
           >
             <Download className="h-4 w-4" />
@@ -230,19 +307,11 @@ function SettingsPage() {
           </button>
 
           <button
-            onClick={() => triggerImport("merge")}
+            onClick={triggerFilePick}
             className="flex items-center justify-center gap-2 rounded-xl bg-secondary py-3 text-sm font-medium active:scale-[0.99]"
           >
             <Upload className="h-4 w-4" />
-            Import & Merge
-          </button>
-
-          <button
-            onClick={() => triggerImport("replace")}
-            className="flex items-center justify-center gap-2 rounded-xl border border-destructive/50 bg-card py-3 text-sm font-medium text-destructive active:scale-[0.99]"
-          >
-            <Upload className="h-4 w-4" />
-            Import & Replace All
+            Import Backup
           </button>
 
           <input
@@ -312,22 +381,163 @@ function SettingsPage() {
         </div>
       </section>
 
-      <AlertDialog
-        open={!!pendingReplace}
-        onOpenChange={(open) => !open && setPendingReplace(null)}
+      {/* Export selection dialog */}
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>What do you want to export?</DialogTitle>
+            <DialogDescription>
+              Choose which data to include in the backup file.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 py-2">
+            {(["routines", "workouts", "prHistory"] as Category[]).map((c) => (
+              <label key={c} className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={exportSelected[c]}
+                    onCheckedChange={(v) =>
+                      setExportSelected((s) => ({ ...s, [c]: v === true }))
+                    }
+                  />
+                  {categoryLabel(c)}
+                </span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {exportCounts ? exportCounts[c] : "…"}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <button
+              onClick={() => setExportOpen(false)}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmExport}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            >
+              Export
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import selection dialog */}
+      <Dialog
+        open={!!importPayload}
+        onOpenChange={(open) => !open && setImportPayload(null)}
       >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>What do you want to import?</DialogTitle>
+            <DialogDescription>
+              {importPayload
+                ? `Backup from ${new Date(importPayload.exportedAt).toLocaleDateString()}. Choose which data to bring in and how.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {importPayload && (
+            <>
+              <div className="flex flex-col gap-3 py-2">
+                {(["routines", "workouts", "prHistory"] as Category[]).map((c) => {
+                  const count =
+                    c === "routines"
+                      ? importPayload.routines.length
+                      : c === "workouts"
+                        ? importPayload.workouts.length
+                        : importPayload.prHistory.length;
+                  return (
+                    <label key={c} className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={importSelected[c]}
+                          disabled={count === 0}
+                          onCheckedChange={(v) =>
+                            setImportSelected((s) => ({ ...s, [c]: v === true }))
+                          }
+                        />
+                        {categoryLabel(c)}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {count} {count === 0 ? "(empty)" : ""}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-2 rounded-lg bg-secondary/50 p-1">
+                <button
+                  onClick={() => setImportMode("merge")}
+                  className={`flex-1 rounded-md py-2 text-xs font-semibold transition-colors ${
+                    importMode === "merge"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  Merge
+                </button>
+                <button
+                  onClick={() => setImportMode("replace")}
+                  className={`flex-1 rounded-md py-2 text-xs font-semibold transition-colors ${
+                    importMode === "replace"
+                      ? "bg-destructive text-destructive-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  Replace
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {importMode === "merge"
+                  ? "Adds the selected data alongside what you already have."
+                  : "Deletes your existing data in the selected categories first, then imports. Categories left unchecked are not affected."}
+              </p>
+            </>
+          )}
+
+          <DialogFooter>
+            <button
+              onClick={() => setImportPayload(null)}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={startImport}
+              className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                importMode === "replace"
+                  ? "bg-destructive text-destructive-foreground"
+                  : "bg-primary text-primary-foreground"
+              }`}
+            >
+              {importMode === "replace" ? "Replace" : "Import"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Replace confirmation */}
+      <AlertDialog open={replaceConfirmOpen} onOpenChange={setReplaceConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Replace all data?</AlertDialogTitle>
+            <AlertDialogTitle>Replace selected data?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes your current routines, workouts and PR history,
-              and replaces them with the contents of the backup. This cannot be undone.
+              This permanently deletes your current data in the selected categories
+              and replaces it with the contents of the backup. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => pendingReplace && replaceImport(pendingReplace)}
+              onClick={runImport}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Replace
             </AlertDialogAction>
