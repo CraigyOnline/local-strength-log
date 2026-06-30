@@ -504,7 +504,11 @@ function HistoryDetailPage() {
       )}
 
       {picking && (
-        <ExercisePicker onClose={() => setPicking(false)} onPick={addExercise} />
+        <ExercisePicker
+          onClose={() => setPicking(false)}
+          onPick={addExercise}
+          addedIds={new Set((draft?.exercises ?? []).map((e) => e.exerciseId))}
+        />
       )}
 
       {undo && (

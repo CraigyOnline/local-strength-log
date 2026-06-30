@@ -313,6 +313,7 @@ function WorkoutPage() {
             );
             setPicking(false);
           }}
+          addedIds={new Set(active.exercises.map((e) => e.exerciseId))}
         />
       )}
 
