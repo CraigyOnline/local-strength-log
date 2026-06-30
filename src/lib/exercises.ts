@@ -77,7 +77,7 @@ export const EXERCISES: ExerciseDef[] = [
   E("chest-fly", "Chest Fly (Dumbbell)", "Chest", "Dumbbell"),
   E("cable-crossover", "Cable Crossover", "Chest", "Cable"),
   E("push-up", "Push Up", "Chest", "Bodyweight", ["Triceps", "Shoulders"]),
-  E("dip", "Chest Dip", "Chest", "Bodyweight", ["Triceps"]),
+  E("dip", "Chest Dip", "Chest", "Bodyweight", ["Triceps", "Shoulders"]),
 
   // Back
   E("deadlift", "Deadlift (Barbell)", "LowerBack", "Barbell", ["Glutes", "Hamstrings"]),
@@ -90,7 +90,7 @@ export const EXERCISES: ExerciseDef[] = [
   E("barbell-row", "Barbell Row", "UpperBack", "Barbell", ["Lats", "Biceps"]),
   E("t-bar-row", "T-Bar Row", "UpperBack", "Barbell", ["Lats"]),
   E("face-pull", "Face Pull", "UpperBack", "Cable", ["Shoulders"]),
-  E("back-extension", "Back Extension", "LowerBack", "Bodyweight", ["Glutes"]),
+  E("back-extension", "Back Extension", "LowerBack", "Bodyweight", ["Glutes", "Hamstrings"]),
 
   // Shoulders
   E("ohp", "Overhead Press (Barbell)", "Shoulders", "Barbell", ["Triceps"]),
@@ -117,7 +117,7 @@ export const EXERCISES: ExerciseDef[] = [
   E("back-squat", "Back Squat", "Quads", "Barbell", ["Glutes"]),
   E("front-squat", "Front Squat", "Quads", "Barbell", ["Glutes"]),
   E("goblet-squat", "Goblet Squat", "Quads", "Dumbbell", ["Glutes"]),
-  E("leg-press", "Leg Press", "Quads", "Machine", ["Glutes"]),
+  E("leg-press", "Leg Press", "Quads", "Machine", ["Glutes", "Hamstrings"]),
   E("leg-extension", "Leg Extension", "Quads", "Machine"),
   E("leg-curl", "Leg Curl", "Hamstrings", "Machine", ["Calves"]),
   E("lunge", "Walking Lunge", "Quads", "Dumbbell", ["Glutes"]),
