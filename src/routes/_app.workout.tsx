@@ -757,7 +757,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
 
                     {isCardio ? (
                       <>
-                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border">
+                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border w-fit">
                           <button
                             onClick={() => updateSet(ei, si, { weight: Math.max(0, (s.weight ?? 0) - 0.1) })}
                             className="w-7 h-full text-sm"
@@ -806,7 +806,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                           </button>
                         </div>
 
-                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border">
+                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border w-fit">
                           <button
                             onClick={() => updateSet(ei, si, { weight: Math.max(0, (s.weight ?? 0) - 2.5) })}
                             className="w-7 h-full text-sm"
@@ -831,7 +831,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                       </>
                     ) : (
                       <>
-                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border">
+                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border w-fit">
                           <button
                             onClick={() => updateSet(ei, si, { weight: Math.max(0, (s.weight ?? 0) - 2.5) })}
                             className="w-7 h-full text-sm"
@@ -853,7 +853,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                             +
                           </button>
                         </div>
-                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border">
+                        <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-8 border w-fit">
                           <button
                             onClick={() => updateSet(ei, si, { reps: Math.max(0, (s.reps ?? 0) - 1) })}
                             className="w-7 h-full text-sm"

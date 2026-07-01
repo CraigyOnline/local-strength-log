@@ -6,6 +6,7 @@ import { EXERCISES, getExercise, isTimeBased, type MuscleGroup } from "@/lib/exe
 import { Plus, Pencil, Trash2, X, Check, ArrowUp, ArrowDown, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MmSsInput } from "@/components/forms/MmSsInput";
+import { NumberInput } from "@/components/forms/NumberInput";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -430,49 +431,21 @@ function RoutineEditor({
 
                     <div className="mt-3 flex flex-wrap gap-3">
 
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-muted-foreground">Sets</span>
-                        <input
-                          type="number"
-                          min="1"
-                          value={e.sets}
-                          onFocus={(ev) => ev.currentTarget.select()}
-                          onChange={(ev) =>
-                            setExercises((xs) =>
-                              xs.map((x, idx) => {
-                                if (idx !== i) return x;
-                                const raw = ev.target.value;
-                                return {
-                                  ...x,
-                                  sets: raw === "" ? x.sets : Math.max(1, Number(raw)),
-                                };
-                              })
-                            )
-                          }
-                          className="w-14 rounded bg-secondary px-2 py-1 text-sm"
-                        />
-                      </div>
-
                       {isExCardio ? (
                         <>
                           <div className="flex items-center gap-1">
                             <span className="text-xs text-muted-foreground">Km</span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.1"
-                              value={e.targetWeight ?? ""}
-                              onChange={(ev) =>
+                            <NumberInput
+                              value={e.targetWeight ?? 0}
+                              onCommit={(v) =>
                                 setExercises((xs) =>
-                                  xs.map((x, idx) =>
-                                    idx === i
-                                      ? { ...x, targetWeight: Math.max(0, Number(ev.target.value) || 0) }
-                                      : x
-                                  )
+                                  xs.map((x, idx) => idx === i ? { ...x, targetWeight: v } : x)
                                 )
                               }
-                              className="w-16 rounded bg-secondary px-2 py-1 text-sm"
+                              decimal
+                              min={0}
                               placeholder="0"
+                              className="w-14 rounded bg-secondary px-2 py-1 text-sm"
                             />
                           </div>
                           <div className="flex items-center gap-1">
@@ -507,46 +480,76 @@ function RoutineEditor({
                         <>
                           <div className="flex items-center gap-1">
                             <span className="text-xs text-muted-foreground">Kg</span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.5"
-                              value={e.targetWeight ?? ""}
-                              onChange={(ev) =>
+                            <NumberInput
+                              value={e.targetWeight ?? 0}
+                              onCommit={(v) =>
                                 setExercises((xs) =>
-                                  xs.map((x, idx) =>
-                                    idx === i
-                                      ? { ...x, targetWeight: Math.max(0, Number(ev.target.value) || 0) }
-                                      : x
-                                  )
+                                  xs.map((x, idx) => idx === i ? { ...x, targetWeight: v } : x)
                                 )
                               }
-                              className="w-16 rounded bg-secondary px-2 py-1 text-sm"
+                              decimal
+                              min={0}
                               placeholder="0"
+                              className="w-14 rounded bg-secondary px-2 py-1 text-sm"
                             />
                           </div>
 
                           <div className="flex items-center gap-1">
                             <span className="text-xs text-muted-foreground">Reps</span>
-                            <input
-                              type="number"
-                              min="0"
-                              value={e.targetReps ?? ""}
-                              onChange={(ev) =>
+                            <NumberInput
+                              value={e.targetReps ?? 0}
+                              onCommit={(v) =>
                                 setExercises((xs) =>
-                                  xs.map((x, idx) =>
-                                    idx === i
-                                      ? { ...x, targetReps: Math.max(0, Number(ev.target.value) || 0) }
-                                      : x
-                                  )
+                                  xs.map((x, idx) => idx === i ? { ...x, targetReps: v } : x)
                                 )
                               }
-                              className="w-14 rounded bg-secondary px-2 py-1 text-sm"
+                              min={0}
                               placeholder="0"
+                              className="w-14 rounded bg-secondary px-2 py-1 text-sm"
                             />
                           </div>
                         </>
                       )}
+
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        {Array.from({ length: e.sets }, (_, si) => (
+                          <span
+                            key={si}
+                            className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium"
+                          >
+                            Set {si + 1}
+                            {e.sets > 1 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExercises((xs) =>
+                                    xs.map((x, idx) =>
+                                      idx === i ? { ...x, sets: x.sets - 1 } : x
+                                    )
+                                  )
+                                }
+                                className="ml-0.5 text-muted-foreground hover:text-foreground"
+                                aria-label="Remove set"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExercises((xs) =>
+                              xs.map((x, idx) =>
+                                idx === i ? { ...x, sets: x.sets + 1 } : x
+                              )
+                            )
+                          }
+                          className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-xs text-muted-foreground hover:border-primary hover:text-primary"
+                        >
+                          <Plus className="h-3 w-3" /> Add set
+                        </button>
+                      </div>
 
                     </div>
                   </div>
