@@ -770,6 +770,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                             decimal
                             min={0}
                             placeholder="0"
+                            className="w-12"
                           />
                           <button
                             onClick={() => updateSet(ei, si, { weight: (s.weight ?? 0) + 0.1 })}
@@ -818,6 +819,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                             decimal
                             min={0}
                             placeholder="0"
+                            className="w-12"
                           />
                           <button
                             onClick={() => updateSet(ei, si, { weight: (s.weight ?? 0) + 2.5 })}
@@ -842,6 +844,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                             decimal
                             min={0}
                             placeholder="0"
+                            className="w-12"
                           />
                           <button
                             onClick={() => updateSet(ei, si, { weight: (s.weight ?? 0) + 2.5 })}
@@ -862,6 +865,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                             onCommit={(v) => updateSet(ei, si, { reps: v })}
                             min={0}
                             placeholder="0"
+                            className="w-12"
                           />
                           <button
                             onClick={() => updateSet(ei, si, { reps: (s.reps ?? 0) + 1 })}
