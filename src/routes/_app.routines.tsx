@@ -5,6 +5,7 @@ import { getDb, type Routine } from "@/lib/db";
 import { EXERCISES, getExercise, isTimeBased, type MuscleGroup } from "@/lib/exercises";
 import { Plus, Pencil, Trash2, X, Check, ArrowUp, ArrowDown, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MmSsInput } from "@/components/forms/MmSsInput";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -768,69 +769,5 @@ function ExerciseRow({
       </div>
       {added && <Check className="h-4 w-4 shrink-0 text-primary" />}
     </button>
-  );
-}
-
-// ─────────────────────────────────────────────
-// MmSsInput — proper minutes:seconds entry, used wherever a cardio/time-based
-// duration is edited. Two small fields instead of one raw-seconds box.
-// ─────────────────────────────────────────────
-
-export function MmSsInput({
-  seconds,
-  onCommit,
-}: {
-  seconds: number;
-  onCommit: (totalSeconds: number) => void;
-}) {
-  const mm = Math.floor(Math.max(0, seconds) / 60);
-  const ss = Math.max(0, seconds) % 60;
-  const [mStr, setMStr] = useState(String(mm));
-  const [sStr, setSStr] = useState(String(ss).padStart(2, "0"));
-
-  useEffect(() => {
-    setMStr(String(mm));
-    setSStr(String(ss).padStart(2, "0"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seconds]);
-
-  function commit(nextM: string, nextS: string) {
-    const m = Math.max(0, parseInt(nextM, 10) || 0);
-    const s = Math.max(0, Math.min(59, parseInt(nextS, 10) || 0));
-    onCommit(m * 60 + s);
-  }
-
-  return (
-    <div className="flex items-center gap-1">
-      <input
-        type="text"
-        inputMode="numeric"
-        value={mStr}
-        onChange={(e) => {
-          const v = e.target.value.replace(/[^0-9]/g, "");
-          setMStr(v);
-        }}
-        onBlur={() => commit(mStr, sStr)}
-        placeholder="0"
-        className="w-10 rounded bg-secondary px-2 py-1 text-center text-sm"
-      />
-      <span className="text-sm text-muted-foreground">:</span>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={sStr}
-        onChange={(e) => {
-          const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 2);
-          setSStr(v);
-        }}
-        onBlur={() => {
-          const padded = sStr === "" ? "00" : sStr.padStart(2, "0");
-          setSStr(padded);
-          commit(mStr, padded);
-        }}
-        placeholder="00"
-        className="w-10 rounded bg-secondary px-2 py-1 text-center text-sm"
-      />
-    </div>
   );
 }

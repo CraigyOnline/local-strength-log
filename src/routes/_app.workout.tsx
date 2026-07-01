@@ -12,6 +12,7 @@ import {
 } from "@/lib/db";
 import { getExercise, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
+import { NumberInput } from "@/components/forms/NumberInput";
 import { Check, Plus, Timer, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WorkoutSummary } from "@/components/WorkoutSummary";
@@ -763,10 +764,11 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                           >
                             −
                           </button>
-                          <NumField
+                          <NumberInput
                             value={s.weight ?? 0}
                             onCommit={(v) => updateSet(ei, si, { weight: v })}
                             decimal
+                            min={0}
                             placeholder="0"
                           />
                           <button
@@ -810,10 +812,11 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                           >
                             −
                           </button>
-                          <NumField
+                          <NumberInput
                             value={s.weight ?? 0}
                             onCommit={(v) => updateSet(ei, si, { weight: v })}
                             decimal
+                            min={0}
                             placeholder="0"
                           />
                           <button
@@ -833,10 +836,11 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                           >
                             −
                           </button>
-                          <NumField
+                          <NumberInput
                             value={s.weight ?? 0}
                             onCommit={(v) => updateSet(ei, si, { weight: v })}
                             decimal
+                            min={0}
                             placeholder="0"
                           />
                           <button
@@ -853,9 +857,10 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
                           >
                             −
                           </button>
-                          <NumField
+                          <NumberInput
                             value={s.reps ?? 0}
                             onCommit={(v) => updateSet(ei, si, { reps: v })}
+                            min={0}
                             placeholder="0"
                           />
                           <button
@@ -923,54 +928,6 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
         </div>
       )}
     </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// NumField
-// ─────────────────────────────────────────────
-
-function NumField({
-  value,
-  onCommit,
-  decimal,
-  placeholder,
-}: {
-  value: number;
-  onCommit: (v: number) => void;
-  decimal?: boolean;
-  placeholder?: string;
-}) {
-  const [str, setStr] = useState<string>(String(value ?? 0));
-
-  useEffect(() => {
-    setStr(String(value ?? 0));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
-
-  const re = decimal ? /^\d*\.?\d*$/ : /^\d*$/;
-
-  return (
-    <input
-      type="text"
-      inputMode={decimal ? "decimal" : "numeric"}
-      value={str}
-      placeholder={placeholder}
-      onChange={(e) => {
-        const v = e.target.value;
-        if (!re.test(v)) return;
-        setStr(v);
-        const n = decimal ? parseFloat(v) : parseInt(v, 10);
-        if (Number.isFinite(n)) onCommit(n);
-      }}
-      onBlur={() => {
-        if (str === "" || str === ".") {
-          setStr("0");
-          onCommit(0);
-        }
-      }}
-      className="w-full rounded bg-secondary px-2 py-1 text-sm outline-none"
-    />
   );
 }
 

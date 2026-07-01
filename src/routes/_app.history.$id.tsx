@@ -4,7 +4,9 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Check, Trash2, X, Pencil, Save } from "lucide-react";
 import { getDb, type Workout, type WorkoutExerciseLog, type PRRecord } from "@/lib/db";
 import { getExercise, isTimeBased } from "@/lib/exercises";
-import { ExercisePicker, MmSsInput } from "./_app.routines";
+import { ExercisePicker } from "./_app.routines";
+import { MmSsInput } from "@/components/forms/MmSsInput";
+import { StepperInput } from "@/components/forms/NumberInput";
 import { Button } from "@/components/ui/button";
 import { WorkoutSummary } from "@/components/WorkoutSummary";
 import { formatDuration } from "@/lib/format";
@@ -378,35 +380,13 @@ function HistoryDetailPage() {
                             <span className="text-[10px] uppercase font-bold text-muted-foreground/60">
                               Weight (kg)
                             </span>
-                            <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border">
-                              <button
-                                onClick={() =>
-                                  patchSet(ei, si, {
-                                    weight: Math.max(0, (s.weight ?? 0) - 2.5),
-                                  })
-                                }
-                                className="w-8 h-full"
-                              >
-                                −
-                              </button>
-                              <input
-                                className="w-12 bg-transparent text-center"
-                                value={s.weight ?? ""}
-                                onChange={(e) =>
-                                  patchSet(ei, si, {
-                                    weight: Number(e.target.value.replace(/[^0-9.]/g, "")),
-                                  })
-                                }
-                              />
-                              <button
-                                onClick={() =>
-                                  patchSet(ei, si, { weight: (s.weight ?? 0) + 2.5 })
-                                }
-                                className="w-8 h-full"
-                              >
-                                +
-                              </button>
-                            </div>
+                            <StepperInput
+                              value={s.weight ?? 0}
+                              onCommit={(v) => patchSet(ei, si, { weight: v })}
+                              step={2.5}
+                              decimal
+                              min={0}
+                            />
                           </div>
                         )}
                         {isCardio && (
@@ -414,35 +394,13 @@ function HistoryDetailPage() {
                             <span className="text-[10px] uppercase font-bold text-muted-foreground/60">
                               Km
                             </span>
-                            <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border">
-                              <button
-                                onClick={() =>
-                                  patchSet(ei, si, {
-                                    weight: Math.max(0, (s.weight ?? 0) - 0.1),
-                                  })
-                                }
-                                className="w-8 h-full"
-                              >
-                                −
-                              </button>
-                              <input
-                                className="w-12 bg-transparent text-center"
-                                value={s.weight ?? ""}
-                                onChange={(e) =>
-                                  patchSet(ei, si, {
-                                    weight: Number(e.target.value.replace(/[^0-9.]/g, "")),
-                                  })
-                                }
-                              />
-                              <button
-                                onClick={() =>
-                                  patchSet(ei, si, { weight: (s.weight ?? 0) + 0.1 })
-                                }
-                                className="w-8 h-full"
-                              >
-                                +
-                              </button>
-                            </div>
+                            <StepperInput
+                              value={s.weight ?? 0}
+                              onCommit={(v) => patchSet(ei, si, { weight: v })}
+                              step={0.1}
+                              decimal
+                              min={0}
+                            />
                           </div>
                         )}
                         <div className="flex flex-col gap-1">
@@ -455,32 +413,12 @@ function HistoryDetailPage() {
                               onCommit={(secs) => patchSet(ei, si, { duration: secs })}
                             />
                           ) : (
-                            <div className="flex items-center bg-secondary rounded-lg overflow-hidden h-9 border">
-                              <button
-                                onClick={() =>
-                                  patchSet(ei, si, { reps: Math.max(0, (s.reps ?? 0) - 1) })
-                                }
-                                className="w-8 h-full"
-                              >
-                                −
-                              </button>
-                              <input
-                                className="w-12 bg-transparent text-center"
-                                value={s.reps ?? ""}
-                                onChange={(e) => {
-                                  const v = Number(e.target.value.replace(/[^0-9]/g, ""));
-                                  patchSet(ei, si, { reps: v });
-                                }}
-                              />
-                              <button
-                                onClick={() =>
-                                  patchSet(ei, si, { reps: (s.reps ?? 0) + 1 })
-                                }
-                                className="w-8 h-full"
-                              >
-                                +
-                              </button>
-                            </div>
+                            <StepperInput
+                              value={s.reps ?? 0}
+                              onCommit={(v) => patchSet(ei, si, { reps: v })}
+                              step={1}
+                              min={0}
+                            />
                           )}
                         </div>
                       </div>
