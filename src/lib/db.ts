@@ -3,12 +3,16 @@ import Dexie, { type Table } from "dexie";
 /**
  * ROUTINES
  */
-export interface RoutineExercise {
-  exerciseId: string;
-  sets: number;
+export interface RoutineSet {
   targetWeight?: number;
   targetReps?: number;
   targetDuration?: number;
+}
+
+export interface RoutineExercise {
+  exerciseId: string;
+  /** Ordered list of target sets. Length determines how many set rows are created when starting a workout. */
+  sets: RoutineSet[];
 }
 
 export interface Routine {
@@ -92,6 +96,40 @@ export class AppDB extends Dexie {
             if (routine.pinned === undefined) {
               routine.pinned = false;
             }
+          });
+      });
+
+    // v5: RoutineExercise.sets changed from a count (number) to an array of
+    // per-set targets (RoutineSet[]). Existing routines are migrated by
+    // expanding the old count into an array where every set inherits the
+    // exercise-level targetWeight / targetReps / targetDuration that existed
+    // previously. No data is lost.
+    this.version(5)
+      .stores({
+        routines: "++id, name, createdAt, pinned",
+        workouts: "++id, startedAt, routineId",
+        prHistory: "++id, exerciseId, type, value, workoutId, createdAt",
+      })
+      .upgrade((tx) => {
+        return tx
+          .table("routines")
+          .toCollection()
+          .modify((routine) => {
+            routine.exercises = (routine.exercises ?? []).map(
+              (ex: { exerciseId: string; sets: unknown; targetWeight?: number; targetReps?: number; targetDuration?: number }) => {
+                // Already migrated (array) — skip
+                if (Array.isArray(ex.sets)) return ex;
+                const count = typeof ex.sets === "number" && ex.sets > 0 ? ex.sets : 1;
+                const template: RoutineSet = {};
+                if (ex.targetWeight != null) template.targetWeight = ex.targetWeight;
+                if (ex.targetReps   != null) template.targetReps   = ex.targetReps;
+                if (ex.targetDuration != null) template.targetDuration = ex.targetDuration;
+                return {
+                  exerciseId: ex.exerciseId,
+                  sets: Array.from({ length: count }, () => ({ ...template })),
+                };
+              },
+            );
           });
       });
 
