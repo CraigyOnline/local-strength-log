@@ -2,7 +2,7 @@ import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDb, type Routine, type RoutineSet } from "@/lib/db";
-import { EXERCISES, getExercise, isTimeBased, type MuscleGroup } from "@/lib/exercises";
+import { EXERCISES, getExercise, isCardio, isTimeBased, type MuscleGroup } from "@/lib/exercises";
 import { Plus, Pencil, Trash2, X, Check, ArrowUp, ArrowDown, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MmSsInput } from "@/components/forms/MmSsInput";
@@ -424,7 +424,7 @@ function RoutineEditor({
           <ul className="mt-3 flex flex-col gap-2">
             {exercises.map((e, i) => {
               const def = getExercise(e.exerciseId);
-              const isExCardio = def?.cardio === true;
+              const isExCardio = isCardio(def);
               const isExTimeBased = isTimeBased(def);
               return (
                 <li

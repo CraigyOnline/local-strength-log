@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Check, Trash2, X, Pencil, Save } from "lucide-react";
 import { getDb, type Workout, type WorkoutExerciseLog, type PRRecord } from "@/lib/db";
-import { getExercise, isTimeBased } from "@/lib/exercises";
+import { getExercise, isCardio, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
 import { MmSsInput } from "@/components/forms/MmSsInput";
 import { StepperInput } from "@/components/forms/NumberInput";
@@ -338,7 +338,7 @@ function HistoryDetailPage() {
         const def = getExercise(ex.exerciseId);
         const timeBased = isTimeBased(def);
         const isBodyweight = def?.equipment === "Bodyweight";
-        const isCardio = def?.equipment === "Cardio";
+        const cardio = isCardio(def);
         return (
           <div key={ei} className="rounded-xl bg-card p-4">
             <div className="flex justify-between">
@@ -375,7 +375,7 @@ function HistoryDetailPage() {
                     </span>
                     {editing ? (
                       <div className="flex flex-wrap gap-4 items-center">
-                        {!isBodyweight && !isCardio && (
+                        {!isBodyweight && !cardio && (
                           <div className="flex flex-col gap-1">
                             <span className="text-[10px] uppercase font-bold text-muted-foreground/60">
                               Weight (kg)
@@ -389,7 +389,7 @@ function HistoryDetailPage() {
                             />
                           </div>
                         )}
-                        {isCardio && (
+                        {cardio && (
                           <div className="flex flex-col gap-1">
                             <span className="text-[10px] uppercase font-bold text-muted-foreground/60">
                               Km
@@ -424,7 +424,7 @@ function HistoryDetailPage() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5 font-medium">
-                        {isCardio ? (
+                        {cardio ? (
                           <span>{s.weight ?? 0}km · {formatDuration(s.duration ?? 0)}</span>
                         ) : timeBased ? (
                           <span>{s.duration ?? 0}s</span>

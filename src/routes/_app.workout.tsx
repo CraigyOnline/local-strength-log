@@ -10,7 +10,7 @@ import {
   type WorkoutSet,
   type PRRecord,
 } from "@/lib/db";
-import { getExercise, isTimeBased } from "@/lib/exercises";
+import { getExercise, isCardio, isTimeBased } from "@/lib/exercises";
 import { ExercisePicker } from "./_app.routines";
 import { NumberInput } from "@/components/forms/NumberInput";
 import { Check, Plus, Timer, X, Trash2 } from "lucide-react";
@@ -124,7 +124,7 @@ function WorkoutPage() {
           {summary.exercises.map((ex, ei) => {
             const def = getExercise(ex.exerciseId);
             const timeBased = isTimeBased(def);
-            const isCardio = def?.cardio === true;
+            const cardio = isCardio(def);
             const completedSets = ex.sets.filter((s) => s.completed);
             if (completedSets.length === 0) return null;
             return (
@@ -133,7 +133,7 @@ function WorkoutPage() {
                 <ul className="mt-1 flex flex-col gap-0.5">
                   {completedSets.map((s, si) => {
                     let label: string;
-                    if (isCardio) {
+                    if (cardio) {
                       const km = s.weight ?? 0;
                       const d = s.duration ?? 0;
                       const m = Math.floor(d / 60);
@@ -700,7 +700,7 @@ function LiveSession({ session, setSession, onAddExercise, onFinish }: LiveSessi
       {session.exercises.map((ex, ei) => {
         const def = getExercise(ex.exerciseId);
         const timeBased = isTimeBased(def);
-        const isCardio = def?.cardio === true;
+        const isCardio = isCardio(def);
 
         return (
           <div key={ei} className="rounded-xl bg-card p-3">

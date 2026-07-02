@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useState } from "react";
 import { getDb, type Workout, type PRRecord } from "@/lib/db";
-import { getExercise } from "@/lib/exercises";
+import { getExercise, isCardio } from "@/lib/exercises";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,7 +78,7 @@ function HistoryList() {
 
           const totalVolume = w.exercises.reduce((sum, ex) => {
             const def = getExercise(ex.exerciseId);
-            if (def?.equipment === "Bodyweight" || def?.equipment === "Cardio") return sum;
+            if (def?.equipment === "Bodyweight" || isCardio(def)) return sum;
             return (
               sum +
               ex.sets.reduce((s, set) => s + (set.weight ?? 0) * (set.reps ?? 0), 0)
