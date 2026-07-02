@@ -178,7 +178,15 @@ export function getExercise(id: string): ExerciseDef | undefined {
   return EXERCISES.find((e) => e.id === id);
 }
 
-/** Helper: should this exercise use time/duration tracking instead of reps? */
+/** True for cardio exercises (rowing, treadmill, etc.).
+ *  Uses the domain `cardio` property, not `equipment`, which is a
+ *  presentation/classification concern. */
+export function isCardio(def: ExerciseDef | undefined): boolean {
+  return def?.cardio === true;
+}
+
+/** True for time-tracked non-cardio exercises (planks, holds, etc.).
+ *  Explicitly excludes cardio so callers don't need to check isCardio first. */
 export function isTimeBased(def: ExerciseDef | undefined): boolean {
-  return Boolean(def?.time || def?.cardio);
+  return Boolean(def?.time) && !isCardio(def);
 }
