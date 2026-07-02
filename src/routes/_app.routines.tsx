@@ -1,12 +1,12 @@
 import { createFileRoute, Link, useBlocker } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDb, type Routine } from "@/lib/db";
+import { getDb, type Routine, type RoutineSet } from "@/lib/db";
 import { EXERCISES, getExercise, isTimeBased, type MuscleGroup } from "@/lib/exercises";
 import { Plus, Pencil, Trash2, X, Check, ArrowUp, ArrowDown, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MmSsInput } from "@/components/forms/MmSsInput";
-import { NumberInput } from "@/components/forms/NumberInput";
+import { StepperInput } from "@/components/forms/NumberInput";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -298,7 +298,13 @@ function RoutineEditor({
     if (exercises.length !== initial.exercises.length) return true;
     return exercises.some((e, i) => {
       const init = initial.exercises[i];
-      return !init || e.exerciseId !== init.exerciseId || e.sets !== init.sets;
+      return !init || e.exerciseId !== init.exerciseId ||
+        e.sets.length !== init.sets.length ||
+        e.sets.some((s, si) =>
+          s.targetWeight !== init.sets[si]?.targetWeight ||
+          s.targetReps   !== init.sets[si]?.targetReps ||
+          s.targetDuration !== init.sets[si]?.targetDuration
+        );
     });
   }, [name, exercises, initial]);
 
@@ -429,127 +435,167 @@ function RoutineEditor({
                     <p className="font-medium">{def?.name ?? e.exerciseId}</p>
                     <p className="text-xs text-muted-foreground">{def?.muscle}</p>
 
-                    <div className="mt-3 flex flex-wrap gap-3">
+                    {/* Per-set target rows — mirrors the workout screen layout */}
+                    <div className="mt-3 space-y-1">
 
-                      {isExCardio ? (
-                        <>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">Km</span>
-                            <NumberInput
-                              value={e.targetWeight ?? 0}
-                              onCommit={(v) =>
-                                setExercises((xs) =>
-                                  xs.map((x, idx) => idx === i ? { ...x, targetWeight: v } : x)
-                                )
-                              }
-                              decimal
-                              min={0}
-                              placeholder="0"
-                              className="w-14 rounded bg-secondary px-2 py-1 text-sm"
-                            />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">Time (mm:ss)</span>
-                            <MmSsInput
-                              seconds={e.targetDuration ?? 0}
-                              onCommit={(secs) =>
-                                setExercises((xs) =>
-                                  xs.map((x, idx) =>
-                                    idx === i ? { ...x, targetDuration: secs } : x
-                                  )
-                                )
-                              }
-                            />
-                          </div>
-                        </>
-                      ) : isExTimeBased ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground">Time (mm:ss)</span>
-                          <MmSsInput
-                            seconds={e.targetDuration ?? 0}
-                            onCommit={(secs) =>
-                              setExercises((xs) =>
-                                xs.map((x, idx) =>
-                                  idx === i ? { ...x, targetDuration: secs } : x
-                                )
-                              )
-                            }
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">Kg</span>
-                            <NumberInput
-                              value={e.targetWeight ?? 0}
-                              onCommit={(v) =>
-                                setExercises((xs) =>
-                                  xs.map((x, idx) => idx === i ? { ...x, targetWeight: v } : x)
-                                )
-                              }
-                              decimal
-                              min={0}
-                              placeholder="0"
-                              className="w-14 rounded bg-secondary px-2 py-1 text-sm"
-                            />
-                          </div>
+                      {/* Column headers */}
+                      <div className="grid grid-cols-[20px_1fr_1fr_20px] gap-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <span>#</span>
+                        {isExCardio ? (
+                          <><span>Km</span><span>Time</span></>
+                        ) : isExTimeBased ? (
+                          <><span>Time</span><span /></>
+                        ) : (
+                          <><span>Kg</span><span>Reps</span></>
+                        )}
+                        <span />
+                      </div>
 
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">Reps</span>
-                            <NumberInput
-                              value={e.targetReps ?? 0}
-                              onCommit={(v) =>
-                                setExercises((xs) =>
-                                  xs.map((x, idx) => idx === i ? { ...x, targetReps: v } : x)
-                                )
-                              }
-                              min={0}
-                              placeholder="0"
-                              className="w-14 rounded bg-secondary px-2 py-1 text-sm"
-                            />
-                          </div>
-                        </>
-                      )}
+                      {e.sets.map((s, si) => (
+                        <div
+                          key={si}
+                          className="grid grid-cols-[20px_1fr_1fr_20px] items-center gap-2"
+                        >
+                          <span className="text-xs font-semibold text-muted-foreground">
+                            {si + 1}
+                          </span>
 
-                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                        {Array.from({ length: e.sets }, (_, si) => (
-                          <span
-                            key={si}
-                            className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium"
-                          >
-                            Set {si + 1}
-                            {e.sets > 1 && (
-                              <button
-                                type="button"
-                                onClick={() =>
+                          {isExCardio ? (
+                            <>
+                              <StepperInput
+                                value={s.targetWeight ?? 0}
+                                onCommit={(v) =>
                                   setExercises((xs) =>
                                     xs.map((x, idx) =>
-                                      idx === i ? { ...x, sets: x.sets - 1 } : x
+                                      idx !== i ? x : {
+                                        ...x,
+                                        sets: x.sets.map((rs, ri) =>
+                                          ri === si ? { ...rs, targetWeight: v } : rs
+                                        ),
+                                      }
                                     )
                                   )
                                 }
-                                className="ml-0.5 text-muted-foreground hover:text-foreground"
-                                aria-label="Remove set"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            )}
-                          </span>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExercises((xs) =>
-                              xs.map((x, idx) =>
-                                idx === i ? { ...x, sets: x.sets + 1 } : x
+                                step={0.1}
+                                decimal
+                                min={0}
+                                size="sm"
+                              />
+                              <MmSsInput
+                                seconds={s.targetDuration ?? 0}
+                                onCommit={(secs) =>
+                                  setExercises((xs) =>
+                                    xs.map((x, idx) =>
+                                      idx !== i ? x : {
+                                        ...x,
+                                        sets: x.sets.map((rs, ri) =>
+                                          ri === si ? { ...rs, targetDuration: secs } : rs
+                                        ),
+                                      }
+                                    )
+                                  )
+                                }
+                              />
+                            </>
+                          ) : isExTimeBased ? (
+                            <>
+                              <MmSsInput
+                                seconds={s.targetDuration ?? 0}
+                                onCommit={(secs) =>
+                                  setExercises((xs) =>
+                                    xs.map((x, idx) =>
+                                      idx !== i ? x : {
+                                        ...x,
+                                        sets: x.sets.map((rs, ri) =>
+                                          ri === si ? { ...rs, targetDuration: secs } : rs
+                                        ),
+                                      }
+                                    )
+                                  )
+                                }
+                              />
+                              <span />
+                            </>
+                          ) : (
+                            <>
+                              <StepperInput
+                                value={s.targetWeight ?? 0}
+                                onCommit={(v) =>
+                                  setExercises((xs) =>
+                                    xs.map((x, idx) =>
+                                      idx !== i ? x : {
+                                        ...x,
+                                        sets: x.sets.map((rs, ri) =>
+                                          ri === si ? { ...rs, targetWeight: v } : rs
+                                        ),
+                                      }
+                                    )
+                                  )
+                                }
+                                step={2.5}
+                                decimal
+                                min={0}
+                                size="sm"
+                              />
+                              <StepperInput
+                                value={s.targetReps ?? 0}
+                                onCommit={(v) =>
+                                  setExercises((xs) =>
+                                    xs.map((x, idx) =>
+                                      idx !== i ? x : {
+                                        ...x,
+                                        sets: x.sets.map((rs, ri) =>
+                                          ri === si ? { ...rs, targetReps: v } : rs
+                                        ),
+                                      }
+                                    )
+                                  )
+                                }
+                                step={1}
+                                min={0}
+                                size="sm"
+                              />
+                            </>
+                          )}
+
+                          {/* Remove set — disabled at 1 set minimum */}
+                          <button
+                            type="button"
+                            disabled={e.sets.length <= 1}
+                            onClick={() =>
+                              setExercises((xs) =>
+                                xs.map((x, idx) =>
+                                  idx !== i ? x : {
+                                    ...x,
+                                    sets: x.sets.filter((_, ri) => ri !== si),
+                                  }
+                                )
                               )
-                            )
-                          }
-                          className="flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-xs text-muted-foreground hover:border-primary hover:text-primary"
-                        >
-                          <Plus className="h-3 w-3" /> Add set
-                        </button>
-                      </div>
+                            }
+                            className="text-muted-foreground disabled:opacity-20"
+                            aria-label="Remove set"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* Add set — copies last set's targets as defaults */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExercises((xs) =>
+                            xs.map((x, idx) => {
+                              if (idx !== i) return x;
+                              const last = x.sets[x.sets.length - 1] ?? {};
+                              return { ...x, sets: [...x.sets, { ...last }] };
+                            })
+                          )
+                        }
+                        className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-border py-1.5 text-xs font-medium text-muted-foreground active:bg-secondary"
+                      >
+                        <Plus className="h-3 w-3" /> Add set
+                      </button>
 
                     </div>
                   </div>
@@ -595,7 +641,7 @@ function RoutineEditor({
         <ExercisePicker
           onClose={() => setPicking(false)}
           onPick={(id) => {
-            setExercises((xs) => [...xs, { exerciseId: id, sets: 1 }]);
+            setExercises((xs) => [...xs, { exerciseId: id, sets: [{}] }]);
             setPicking(false);
           }}
           addedIds={new Set(exercises.map((e) => e.exerciseId))}

@@ -96,11 +96,11 @@ function WorkoutPage() {
       exercises:
         r?.exercises.map((e) => ({
           exerciseId: e.exerciseId,
-          sets: Array.from({ length: Math.max(1, e.sets) }, () => ({
+          sets: (e.sets.length > 0 ? e.sets : [{}]).map((s) => ({
             ...makeSet(),
-            weight: e.targetWeight ?? 0,
-            reps: e.targetReps ?? 0,
-            duration: e.targetDuration ?? 0,
+            weight: s.targetWeight ?? 0,
+            reps: s.targetReps ?? 0,
+            duration: s.targetDuration ?? 0,
           })),
         })) ?? [],
     });
